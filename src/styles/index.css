@@ -265,7 +265,11 @@ body {
 }
 
 /* 소멸 1~2단계의 빛.
-   top/height 는 Page 가 매 프레임 "화면에 남아 있는 페이지 영역"으로 맞춰 준다. */
+   top/height 는 Page 가 매 프레임 "화면에 남아 있는 페이지 영역"으로 맞춰 준다.
+
+   아래쪽은 반드시 흐려서 끝내야 한다. 레이어 높이를 페이지 끝에 딱 맞추면
+   좌우와 위는 방사형 그라데이션이라 부드러운데 아래만 직선으로 잘려서,
+   밝은 띠와 어두운 바탕이 칼로 자른 듯 맞붙는다. */
 .page-light {
   position: absolute;
   left: 0;
@@ -274,6 +278,20 @@ body {
   height: 0;
   pointer-events: none;
   opacity: 0;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 var(--light-solid, 42%),
+    rgb(0 0 0 / 0.4) calc((var(--light-solid, 42%) + var(--light-end, 100%)) / 2),
+    rgb(0 0 0 / 0) var(--light-end, 100%)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 var(--light-solid, 42%),
+    rgb(0 0 0 / 0.4) calc((var(--light-solid, 42%) + var(--light-end, 100%)) / 2),
+    rgb(0 0 0 / 0) var(--light-end, 100%)
+  );
 }
 
 /* 4막은 자기 글자색을 쓴다.

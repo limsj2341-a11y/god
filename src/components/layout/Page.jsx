@@ -171,19 +171,34 @@ export function Page({ index, dissolve = false, className = '', children }) {
         const alpha = 0.12 + 0.46 * s1;
         const lightOpacity = s1 * (1 - 0.9 * s3);
 
-        // 마스크와 같은 밴드에 얹어야 종이 가장자리와 빛의 가장자리가 맞는다
+        // 빛은 페이지가 끝나는 자리에서 멈추면 안 된다. 거기서 끊으면
+        // 밝은 띠와 어두운 바탕이 가로선으로 맞붙는다. 아래로 한참 흘려보내고
+        // 그 구간에서 서서히 사라지게 한다 — 빛이 넘치는 게 개념상으로도 맞다.
+        const spill = vh * 0.42;
+        const total = bandH + spill;
         write(light, lc, 'top', `${bandTopEl.toFixed(0)}px`);
-        write(light, lc, 'height', `${bandH.toFixed(0)}px`);
+        write(light, lc, 'height', `${total.toFixed(0)}px`);
+        writeCustom(light, lc, '--light-solid', `${((bandH / total) * 55).toFixed(1)}%`);
+        writeCustom(light, lc, '--light-end', `${((bandH / total) * 100 + 42).toFixed(1)}%`);
 
         // 빛은 색을 덧칠하는 게 아니라 밝기를 올려야 한다.
         // 앰버(#E0A75C)를 어두운 슬레이트 위에 얹으면 녹슨 갈색이 된다 —
         // 4막 종이색에 가까운 따뜻한 흰빛으로 번지게 하고,
         // 바깥 가장자리에만 아주 옅은 온기를 남긴다.
+        //
+        // 크기와 중심을 % 가 아니라 px 로 잡는다. % 로 두고 배경을 페이지
+        // 영역 높이에 맞춰 자르면, 흘러내리는 구간에는 그림이 아예 없어서
+        // 페이지가 끝나는 자리에 가로선이 그대로 남는다. px 로 고정하면
+        // 빛의 중심은 페이지에 붙어 있고, 마지막 색이 아래까지 이어져
+        // 마스크가 그 부분을 자연스럽게 걷어 간다.
+        const rx = Math.round(rect.width * 1.15);
+        const ry = Math.round(bandH * 0.85);
+        const cy = Math.round(bandH * 0.45);
         write(
           light,
           lc,
           'background',
-          `radial-gradient(115% 85% at 50% 45%, ` +
+          `radial-gradient(${rx}px ${ry}px at 50% ${cy}px, ` +
             `transparent ${a.toFixed(1)}%, ` +
             `rgba(249,242,229,${(alpha * 0.72).toFixed(3)}) ${(a + 20).toFixed(1)}%, ` +
             `rgba(243,221,187,${alpha.toFixed(3)}) ${(a + 34).toFixed(1)}%)`,
