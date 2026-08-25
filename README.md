@@ -73,29 +73,64 @@ sections: [
 두 축의 문항 수가 달라도 결과가 한쪽으로 기울지 않습니다.
 (`src/lib/scoring.js`)
 
-## 담벼락을 백엔드로 옮길 때
+## 담벼락 (Supabase)
 
-지금은 `localStorage` 에 저장된다. 저장 로직은 어댑터로 분리되어 있어
-컴포넌트를 건드릴 필요가 없다.
+모든 방문자가 **같은 담벼락**을 본다. 데이터는 Supabase 프로젝트
+`limsj2341-a11y's Project` (ap-northeast-2) 의 `public.wall_entries` 에 쌓인다.
 
 ```
 src/storage/
-├── index.js         # 어댑터 선택 + 인터페이스 정의
-├── localAdapter.js  # 현재 사용 중
-└── httpAdapter.js   # 서버용 (스텁, 구현 완료)
+├── index.js            # 어댑터 선택 + 인터페이스 정의
+├── supabaseConfig.js   # 접속 주소와 publishable 키
+├── supabaseAdapter.js  # 현재 사용 중 (fetch 로 PostgREST 직접 호출)
+├── httpAdapter.js      # 직접 만든 API 를 붙일 때
+└── localAdapter.js     # 저장소 없이 이 브라우저에만 쌓을 때
 ```
 
-`.env` 파일에 한 줄을 넣으면 자동으로 서버 어댑터로 전환된다:
+`@supabase/supabase-js` 는 쓰지 않는다. 필요한 것이 목록 읽기와 한 줄
+넣기뿐이라 클라이언트 라이브러리를 번들에 싣지 않았다.
+
+### 키가 저장소에 있는 이유
+
+`supabaseConfig.js` 의 `sb_publishable_...` 키는 **브라우저에 실려 나가라고
+만들어진 키다.** 배포된 사이트의 JS 번들 안에 어차피 들어 있고 개발자 도구를
+열면 누구나 볼 수 있다. 실제 보호는 키가 아니라 데이터베이스의 RLS 정책이 한다.
+
+절대 `service_role` 키(`sb_secret_...`)를 여기에 넣지 말 것. 그 키는 RLS 를
+통째로 우회한다.
+
+### 걸려 있는 정책 (`wall_entries`)
+
+| 동작 | 허용 |
+| --- | --- |
+| SELECT | 누구나 (담벼락이므로) |
+| INSERT | 누구나, 단 1~80자 |
+| UPDATE | 정책 없음 → 아무도 못 고침 |
+| DELETE | 정책 없음 → 아무도 못 지움 |
+
+실제로 찔러서 확인했다. 80자 초과·빈 문자열 등록은 거부되고, 남의 글을
+수정하거나 지우려는 요청은 0건 처리된다. 글을 지우려면 Supabase 대시보드를
+쓴다(service_role).
+
+**익명은 진짜 익명이다.** IP 도, 해시한 IP 도 저장하지 않는다. 스팸을 막는
+장치가 그만큼 없다는 뜻이기도 하다 — 문제가 생기면 Turnstile 이나 엣지 함수를
+앞에 두는 쪽으로 가야 한다.
+
+### 무료 플랜 주의
+
+Supabase 무료 프로젝트는 **약 일주일간 아무 요청이 없으면 자동으로 멈춘다.**
+멈춘 동안 담벼락은 비어 보이고 등록도 실패한다. 대시보드에서 Restore 를
+누르면 1~2분 안에 돌아온다. (이 프로젝트도 한 번 멈춰 있었다.)
+
+### 저장 위치 바꾸기
+
+`.env` 파일로 덮어쓴다.
 
 ```
-VITE_WALL_API=https://example.com/api
-```
-
-서버가 맞춰야 할 계약:
-
-```
-GET  {base}/entries  ->  [{ id, text, createdAt }, ...]   (최신순)
-POST {base}/entries  <-  { text }  ->  { id, text, createdAt }
+VITE_WALL_LOCAL=1          # 저장소 없이 이 브라우저에만
+VITE_WALL_API=https://…    # 직접 만든 API 로
+VITE_SUPABASE_URL=…        # 다른 Supabase 프로젝트로
+VITE_SUPABASE_KEY=…
 ```
 
 ## 구조 메모
