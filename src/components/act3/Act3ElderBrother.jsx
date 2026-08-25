@@ -18,6 +18,8 @@ export function Act3ElderBrother() {
   const [entries, setEntries] = useState([]);
   const [busy, setBusy] = useState(false);
   const [justAdded, setJustAdded] = useState(0);
+  // 원격 담벼락에 닿지 못해 이 기기에만 쌓고 있는 상태인지
+  const [offline, setOffline] = useState(false);
   const freshTimer = useRef(null);
 
   useEffect(() => {
@@ -36,9 +38,17 @@ export function Act3ElderBrother() {
       if (alive) setEntries(items);
     });
 
+    // 저장소가 로컬로 내려앉으면 그 사실을 알린다.
+    // 감싸지 않은 어댑터(로컬 전용 등)에는 이 함수가 없다.
+    setOffline(wallStorage.getMode?.() === 'local');
+    const unwatchMode = wallStorage.onModeChange?.((mode) => {
+      if (alive) setOffline(mode === 'local');
+    });
+
     return () => {
       alive = false;
       unsubscribe();
+      unwatchMode?.();
       if (freshTimer.current) clearTimeout(freshTimer.current);
     };
   }, []);
@@ -104,6 +114,16 @@ export function Act3ElderBrother() {
           </p>
 
           <LanternRow count={entries.length} justAdded={justAdded} />
+
+          {offline ? (
+            <p
+              role="status"
+              className="text-faint kr mt-6 border-l-2 border-clay/50 pl-4 text-sm leading-relaxed"
+            >
+              {act3.wall.offline}
+            </p>
+          ) : null}
+
           <WallForm onSubmit={handleSubmit} busy={busy} />
           {/* 내가 방금 남긴 글은 첫 쪽 맨 위에 있으므로 그때만 첫 쪽으로 돌아온다 */}
           <WallList entries={entries} jumpToFirst={justAdded > 0} />

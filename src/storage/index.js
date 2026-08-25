@@ -1,6 +1,7 @@
 import { createLocalAdapter } from './localAdapter';
 import { createHttpAdapter } from './httpAdapter';
 import { createSupabaseAdapter } from './supabaseAdapter';
+import { createResilientAdapter } from './resilientAdapter';
 import { SUPABASE_KEY, SUPABASE_URL, WALL_TABLE } from './supabaseConfig';
 
 /**
@@ -20,6 +21,9 @@ import { SUPABASE_KEY, SUPABASE_URL, WALL_TABLE } from './supabaseConfig';
  *   1. Supabase   — 기본값. 모든 방문자가 같은 담벼락을 본다.
  *   2. 직접 만든 API — .env 에 VITE_WALL_API 를 넣으면 그쪽을 쓴다.
  *   3. localStorage — 위 둘이 없을 때. 글이 이 브라우저 안에만 남는다.
+ *
+ * Supabase 를 쓸 때는 resilientAdapter 로 한 겹 감싼다. 원격이 멈추면
+ * localStorage 로 내려앉았다가, 돌아오면 그동안 쌓인 글을 올려보낸다.
  */
 const env = import.meta.env ?? {};
 
@@ -31,10 +35,15 @@ function pickAdapter() {
 
   if (SUPABASE_URL && SUPABASE_KEY) {
     try {
-      return createSupabaseAdapter({
-        url: SUPABASE_URL,
-        key: SUPABASE_KEY,
-        table: WALL_TABLE,
+      // 원격이 멈춰도 담벼락이 계속 굴러가도록 한 겹 감싼다.
+      // Supabase 무료 프로젝트는 일주일쯤 요청이 없으면 자동으로 멈춘다.
+      return createResilientAdapter({
+        remote: createSupabaseAdapter({
+          url: SUPABASE_URL,
+          key: SUPABASE_KEY,
+          table: WALL_TABLE,
+        }),
+        local: createLocalAdapter(),
       });
     } catch {
       /* 설정이 잘못됐으면 최소한 화면은 살려 둔다 */

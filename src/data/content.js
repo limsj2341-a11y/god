@@ -212,6 +212,7 @@ export const act3 = {
     tooLong: '한 문장으로 줄여 주세요.',
     pagerLabel: '담벼락 쪽 이동',
     pageLabel: (n) => `${n}쪽`,
+    offline: '담벼락에 연결하지 못했습니다. 남기신 문장은 이 기기에 저장되고, 연결이 돌아오면 담벼락에 올라갑니다.',
   },
 };
 
