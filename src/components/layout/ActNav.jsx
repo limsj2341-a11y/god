@@ -24,7 +24,12 @@ export function ActNav({ active }) {
   const go = (id) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.scrollIntoView({ behavior: 'instant', block: 'start' });
+    // scrollIntoView 를 쓰지 않는다. 그것은 조상 스크롤 컨테이너를 전부 움직이는데,
+    // body 가 가로 스크롤 컨테이너였던 탓에 이동할 때마다 본문이 왼쪽으로 45px
+    // 밀려 글자가 잘리고 오른쪽에 빈 띠가 남았다(태블릿에서 재현). body 쪽은
+    // index.css 에서 따로 막았지만, 세로만 움직이면 될 일에 가로를 맡길 이유가 없다.
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({ top, left: 0, behavior: 'instant' });
     // 도착한 페이지가 제 상태를 되찾기까지 IntersectionObserver 를 기다리면
     // 몇 프레임 동안 빈 화면이 스친다. 옮겼다는 사실을 바로 알린다.
     window.dispatchEvent(new Event(JUMP_EVENT));

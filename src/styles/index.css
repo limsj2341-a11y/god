@@ -48,7 +48,11 @@ body {
   letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+  /* hidden 이 아니라 clip 이어야 한다. hidden 은 body 를 가로 스크롤 컨테이너로
+     만들기 때문에, 식탁 조명이 넘치는 만큼(744px 화면에서 789px) 실제로 옆으로
+     밀 수 있는 상태가 된다. scrollIntoView 가 그 틈으로 body 를 45px 밀어
+     본문 글자가 잘렸다. clip 은 스크롤 컨테이너를 만들지 않아 밀릴 여지가 없다. */
+  overflow-x: clip;
 }
 
 ::selection {
