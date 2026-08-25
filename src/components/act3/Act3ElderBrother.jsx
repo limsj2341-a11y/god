@@ -71,9 +71,9 @@ export function Act3ElderBrother() {
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 transition-opacity duration-[1600ms] ease-out"
         style={{
-          // 단계가 적으면 큰 면적에서 경계가 띠로 보인다 — 촘촘하게 끊는다
+          // 등불빛도 앰버를 덧칠하면 갈색으로 가라앉는다. 따뜻한 흰빛으로 올린다.
           background:
-            'radial-gradient(75% 120% at 50% 100%, color-mix(in srgb, var(--color-accent) 16%, transparent) 0%, color-mix(in srgb, var(--color-accent) 11%, transparent) 26%, color-mix(in srgb, var(--color-accent) 6%, transparent) 50%, color-mix(in srgb, var(--color-accent) 2%, transparent) 74%, transparent 100%)',
+            'radial-gradient(75% 120% at 50% 100%, rgba(249,242,229,0.13) 0%, rgba(246,235,214,0.09) 26%, rgba(243,221,187,0.05) 50%, rgba(243,221,187,0.02) 74%, transparent 100%)',
           opacity: lift * 0.55,
         }}
       />

@@ -167,18 +167,25 @@ export function Page({ index, dissolve = false, className = '', children }) {
       const light = lightRef.current;
       if (light) {
         const a = 100 - 60 * s1; // 투명한 중심이 좁아진다
-        const alpha = 0.1 + 0.35 * s1;
+        const alpha = 0.12 + 0.46 * s1;
         const lightOpacity = s1 * (1 - 0.9 * s3);
 
         // 마스크와 같은 밴드에 얹어야 종이 가장자리와 빛의 가장자리가 맞는다
         write(light, lc, 'top', `${bandTopEl.toFixed(0)}px`);
         write(light, lc, 'height', `${bandH.toFixed(0)}px`);
 
+        // 빛은 색을 덧칠하는 게 아니라 밝기를 올려야 한다.
+        // 앰버(#E0A75C)를 어두운 슬레이트 위에 얹으면 녹슨 갈색이 된다 —
+        // 4막 종이색에 가까운 따뜻한 흰빛으로 번지게 하고,
+        // 바깥 가장자리에만 아주 옅은 온기를 남긴다.
         write(
           light,
           lc,
           'background',
-          `radial-gradient(115% 85% at 50% 45%, transparent ${a.toFixed(1)}%, rgba(224,167,92,${alpha.toFixed(3)}) ${(a + 30).toFixed(1)}%)`,
+          `radial-gradient(115% 85% at 50% 45%, ` +
+            `transparent ${a.toFixed(1)}%, ` +
+            `rgba(249,242,229,${(alpha * 0.72).toFixed(3)}) ${(a + 20).toFixed(1)}%, ` +
+            `rgba(243,221,187,${alpha.toFixed(3)}) ${(a + 34).toFixed(1)}%)`,
         );
         write(light, lc, 'opacity', lightOpacity.toFixed(3));
         write(light, lc, 'willChange', lightOpacity > 0.001 ? 'opacity' : 'auto');

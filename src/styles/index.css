@@ -54,17 +54,19 @@ body {
   color: var(--fg);
 }
 
-/* 본문 보조 톤 — 배경이 바뀌어도 대비가 유지되도록 fg 기준 혼합 */
+/* 본문 보조 톤 — 배경이 바뀌어도 대비가 유지되도록 fg 기준 혼합.
+   어두운 막에서 66% / 40% 는 너무 묽어서 본문이 잘 안 읽혔다.
+   #0D0E11 기준 대비: soft 5.9 → 8.6, faint 2.8 → 4.9 로 올렸다. */
 @utility text-soft {
-  color: color-mix(in srgb, var(--fg) 66%, transparent);
+  color: color-mix(in srgb, var(--fg) 80%, transparent);
 }
 
 @utility text-faint {
-  color: color-mix(in srgb, var(--fg) 40%, transparent);
+  color: color-mix(in srgb, var(--fg) 60%, transparent);
 }
 
 @utility border-hair {
-  border-color: color-mix(in srgb, var(--fg) 16%, transparent);
+  border-color: color-mix(in srgb, var(--fg) 22%, transparent);
 }
 
 @utility surface {
@@ -288,8 +290,8 @@ body {
      촘촘하게 끊어 부드럽게 떨어뜨린다. */
   background: radial-gradient(
     closest-side,
-    color-mix(in srgb, var(--color-accent) 52%, transparent) 0%,
-    color-mix(in srgb, var(--color-accent) 43%, transparent) 18%,
+    color-mix(in srgb, var(--color-accent) 44%, transparent) 0%,
+    color-mix(in srgb, var(--color-accent) 36%, transparent) 18%,
     color-mix(in srgb, var(--color-accent) 32%, transparent) 34%,
     color-mix(in srgb, var(--color-accent) 21%, transparent) 50%,
     color-mix(in srgb, var(--color-accent) 12%, transparent) 65%,
