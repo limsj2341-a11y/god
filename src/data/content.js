@@ -210,6 +210,8 @@ export const act3 = {
     empty: '아직 켜진 등불이 없습니다. 첫 문장을 남겨 보세요.',
     counter: (n) => `등불 ${n}개`,
     tooLong: '한 문장으로 줄여 주세요.',
+    pagerLabel: '담벼락 쪽 이동',
+    pageLabel: (n) => `${n}쪽`,
   },
 };
 

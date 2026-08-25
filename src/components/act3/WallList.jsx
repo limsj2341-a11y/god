@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { act3 } from '../../data/content';
 
-const PAGE = 12;
+/** 한 쪽에 놓는 글 수. 넘치면 오래된 것이 뒷쪽으로 밀린다. */
+const PER_PAGE = 6;
+
+/** 쪽 번호를 한 줄에 다 늘어놓을 수 있는 한계. 넘으면 가운데를 줄임표로 접는다. */
+const MAX_TABS = 7;
 
 function relativeTime(iso) {
   const then = new Date(iso).getTime();
@@ -17,14 +21,69 @@ function relativeTime(iso) {
   return new Date(then).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
 }
 
-export function WallList({ entries }) {
-  const [limit, setLimit] = useState(PAGE);
+/**
+ * 보여 줄 쪽 번호. 적으면 전부, 많으면 처음·끝과 현재 주변만 남기고 접는다.
+ * 접은 자리는 null 로 표시한다.
+ */
+function pageTabs(current, total) {
+  if (total <= MAX_TABS) return Array.from({ length: total }, (_, i) => i);
 
-  if (entries.length === 0) {
+  const tabs = new Set([0, total - 1, current]);
+  if (current - 1 > 0) tabs.add(current - 1);
+  if (current + 1 < total - 1) tabs.add(current + 1);
+  // 앞뒤 끝에 붙어 있을 때는 반대쪽을 한 칸 더 보여 준다 — 폭이 들쭉날쭉하지 않게
+  if (current <= 1) tabs.add(2);
+  if (current >= total - 2) tabs.add(total - 3);
+
+  const sorted = [...tabs].filter((n) => n >= 0 && n < total).sort((a, b) => a - b);
+
+  const out = [];
+  let prev = -1;
+  for (const n of sorted) {
+    if (prev >= 0 && n - prev > 1) out.push(null);
+    out.push(n);
+    prev = n;
+  }
+  return out;
+}
+
+/**
+ * 익명 담벼락 목록.
+ *
+ * 최신 글이 첫 쪽 맨 위에 온다. 한 쪽에 여섯 개까지 놓고, 넘치면 오래된 것이
+ * 다음 쪽으로 밀린다 — 담벼락이 길어져도 3막 본문이 목록에 파묻히지 않는다.
+ *
+ * jumpToFirst 는 "방금 내가 글을 남겼다"는 신호다. 그때만 첫 쪽으로 돌아온다.
+ * 새 글이 들어올 때마다 무조건 돌아오면, 뒷쪽을 읽고 있던 사람이 남의 글
+ * 하나에 첫 쪽으로 끌려간다.
+ */
+export function WallList({ entries, jumpToFirst = false }) {
+  const [page, setPage] = useState(0);
+
+  // 어댑터가 무엇이든 최신이 앞이도록 여기서 한 번 더 세운다
+  const ordered = useMemo(
+    () => [...entries].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    [entries],
+  );
+
+  const total = Math.max(1, Math.ceil(ordered.length / PER_PAGE));
+
+  // 글이 지워져 쪽수가 줄면 빈 쪽에 남지 않도록 끌어온다
+  useEffect(() => {
+    setPage((p) => Math.min(p, total - 1));
+  }, [total]);
+
+  useEffect(() => {
+    if (jumpToFirst) setPage(0);
+  }, [jumpToFirst]);
+
+  if (ordered.length === 0) {
     return <p className="text-faint kr mt-8 text-sm">{act3.wall.empty}</p>;
   }
 
-  const visible = entries.slice(0, limit);
+  const start = page * PER_PAGE;
+  const visible = ordered.slice(start, start + PER_PAGE);
+  const tabs = pageTabs(page, total);
 
   return (
     <div className="mt-8">
@@ -49,14 +108,31 @@ export function WallList({ entries }) {
         ))}
       </ul>
 
-      {entries.length > limit ? (
-        <button
-          type="button"
-          onClick={() => setLimit((n) => n + PAGE)}
-          className="text-soft hover:text-ink mt-6 text-xs tracking-wide"
-        >
-          더 보기 ({entries.length - limit})
-        </button>
+      {total > 1 ? (
+        <nav aria-label={act3.wall.pagerLabel} className="mt-6 flex items-center gap-1">
+          {tabs.map((n, i) =>
+            n === null ? (
+              <span key={`gap${i}`} aria-hidden="true" className="text-faint px-1 text-xs">
+                ⋯
+              </span>
+            ) : (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setPage(n)}
+                aria-current={n === page ? 'page' : undefined}
+                aria-label={act3.wall.pageLabel(n + 1)}
+                className={`flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-xs tabular-nums transition-colors duration-300 ${
+                  n === page
+                    ? 'text-ink bg-[color-mix(in_srgb,var(--color-accent)_18%,transparent)]'
+                    : 'text-faint hover:text-soft'
+                }`}
+              >
+                {n + 1}
+              </button>
+            ),
+          )}
+        </nav>
       ) : null}
     </div>
   );

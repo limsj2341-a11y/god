@@ -105,7 +105,8 @@ export function Act3ElderBrother() {
 
           <LanternRow count={entries.length} justAdded={justAdded} />
           <WallForm onSubmit={handleSubmit} busy={busy} />
-          <WallList entries={entries} />
+          {/* 내가 방금 남긴 글은 첫 쪽 맨 위에 있으므로 그때만 첫 쪽으로 돌아온다 */}
+          <WallList entries={entries} jumpToFirst={justAdded > 0} />
         </Reveal>
       </div>
     </Section>
