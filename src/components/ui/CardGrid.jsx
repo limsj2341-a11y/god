@@ -3,11 +3,14 @@
  *   items: [{ label?, title, text?, points?: string[] }]
  *
  * 모바일에서는 한 줄로 쌓이고, sm 이상에서 columns 만큼 나뉜다.
+ * 3열만 예외로 태블릿에서 2열을 거친다 — 본문 칼럼이 672px 라 태블릿에서
+ * 3열이면 한 칸이 213px 밖에 안 되고, 제목이 "바리새인과 / 서기관들" 처럼
+ * 두 줄로 끊겼다.
  */
 const COLS = {
   1: 'sm:grid-cols-1',
   2: 'sm:grid-cols-2',
-  3: 'sm:grid-cols-3',
+  3: 'sm:grid-cols-2 lg:grid-cols-3',
 };
 
 export function CardGrid({ items = [], columns = 2, numbered = false, className = '' }) {
