@@ -1,4 +1,5 @@
 import { nav } from '../../data/content';
+import { JUMP_EVENT } from '../../hooks/useViewportFrame';
 
 /**
  * 우측 고정 인디케이터. 현재 막을 표시하고, 누르면 그 막으로 이동한다.
@@ -22,7 +23,11 @@ export function ActNav({ active }) {
   // 다시 부드럽게 움직인다.
   const go = (id) => {
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'instant', block: 'start' });
+    // 도착한 페이지가 제 상태를 되찾기까지 IntersectionObserver 를 기다리면
+    // 몇 프레임 동안 빈 화면이 스친다. 옮겼다는 사실을 바로 알린다.
+    window.dispatchEvent(new Event(JUMP_EVENT));
   };
 
   return (

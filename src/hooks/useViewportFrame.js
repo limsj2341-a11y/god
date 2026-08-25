@@ -1,6 +1,12 @@
 import { useEffect } from 'react';
 
 /**
+ * 순간 이동을 알리는 신호. 보내는 쪽은 ActNav, 받는 쪽은 이 훅이다.
+ * 스크롤 위치를 코드로 한 번에 바꾼 직후에 쏘면 된다.
+ */
+export const JUMP_EVENT = 'tangbu:jump';
+
+/**
  * 요소가 뷰포트 근처에 있는 동안에만 rAF 루프를 돌린다.
  *
  * scroll 이벤트에는 아무 연산도 붙이지 않는다. IntersectionObserver 는
@@ -52,9 +58,22 @@ export function useViewportFrame(ref, onFrame, { rootMargin = '30% 0px' } = {}) 
       measure();
     };
 
+    // 목차 점으로 순간 이동하면 스크롤 위치가 한 번에 바뀌는데, 루프를 켜고 끄는
+    // IntersectionObserver 는 그보다 몇 프레임 뒤에 도착한다. 그 사이 도착한
+    // 페이지는 "아직 들어오지 않은" 상태(opacity 0, translateX 44px)로 그려진다.
+    // 실측 40ms — 데스크톱에서는 거의 안 보이지만 태블릿에서는 깜빡임이 된다.
+    // 그래서 이동한 쪽(ActNav)이 알려 주면 그 자리에서 바로 확정한다.
+    // 스크롤 이벤트를 구독하지 않는 이유는 이 훅의 존재 이유가 그것이기 때문 —
+    // 순간 이동은 드문 사건이라 그때만 값을 치른다.
+    const onJump = () => measure();
+    window.addEventListener(JUMP_EVENT, onJump);
+
     if (typeof IntersectionObserver === 'undefined') {
       start();
-      return () => stop();
+      return () => {
+        window.removeEventListener(JUMP_EVENT, onJump);
+        stop();
+      };
     }
 
     const io = new IntersectionObserver(
@@ -68,6 +87,7 @@ export function useViewportFrame(ref, onFrame, { rootMargin = '30% 0px' } = {}) 
     io.observe(el);
 
     return () => {
+      window.removeEventListener(JUMP_EVENT, onJump);
       io.disconnect();
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
