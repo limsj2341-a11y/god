@@ -30,6 +30,12 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  /* 식탁 조명(.table-light)은 원형 가장자리를 감추려고 일부러 화면보다 넓다.
+     그런데 모바일 브라우저는 그만큼 레이아웃 뷰포트를 넓혀 버려서, 좌우로
+     스크롤이 생기고 position:fixed 인 막 인디케이터가 화면 밖에 놓였다.
+     루트에서 잘라야 듣는다 — body 의 overflow-x 로는 막지 못한다(실측 확인).
+     clip 은 hidden 과 달리 스크롤 컨테이너를 만들지 않아 부작용이 없다. */
+  overflow-x: clip;
 }
 
 body {
