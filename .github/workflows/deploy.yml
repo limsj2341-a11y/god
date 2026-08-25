@@ -25,7 +25,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # enablement: 저장소 설정에서 Pages 를 미리 켜 두지 않아도
+      # 워크플로가 직접 켠다 (permissions 의 pages: write 가 필요하다)
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
