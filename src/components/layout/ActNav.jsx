@@ -10,9 +10,19 @@ import { nav } from '../../data/content';
  * 버튼의 유일한 이름이라 지우면 스크린 리더가 읽을 것이 없어지기 때문.
  */
 export function ActNav({ active }) {
+  // 목차 이동은 즉시 건너뛴다.
+  //
+  // 부드럽게 이동하면 1.5초 동안 그 거리를 주파하는데, 책장 넘김은 시간이
+  // 아니라 스크롤 위치에 물려 있다. 그래서 넘김 연출이 설계된 적 없는 속도로
+  // 압축 재생되고, 그 사이 두 막의 페이지가 반투명하게 겹쳐 세로 이음매와
+  // 잘린 글자가 그대로 드러났다(1→2, 1→3, 2→3 에서 재현). 3→4 만 멀쩡했던
+  // 것은 3막이 소멸 페이지라 퇴장 슬라이드를 걸지 않기 때문이다.
+  //
+  // 'instant' 는 CSS 의 scroll-behavior: smooth 를 무시한다 — 'auto' 로 두면
+  // 다시 부드럽게 움직인다.
   const go = (id) => {
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
   };
 
   return (
