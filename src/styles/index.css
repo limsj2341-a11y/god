@@ -278,16 +278,19 @@ body {
   height: 0;
   pointer-events: none;
   opacity: 0;
+  /* --light-top 이 0% 이면 위쪽 페이드가 없는 것과 같다 (두 정지점이 겹친다) */
   -webkit-mask-image: linear-gradient(
     to bottom,
-    #000 0%,
+    rgb(0 0 0 / 0) 0%,
+    #000 var(--light-top, 0%),
     #000 var(--light-solid, 42%),
     rgb(0 0 0 / 0.4) calc((var(--light-solid, 42%) + var(--light-end, 100%)) / 2),
     rgb(0 0 0 / 0) var(--light-end, 100%)
   );
   mask-image: linear-gradient(
     to bottom,
-    #000 0%,
+    rgb(0 0 0 / 0) 0%,
+    #000 var(--light-top, 0%),
     #000 var(--light-solid, 42%),
     rgb(0 0 0 / 0.4) calc((var(--light-solid, 42%) + var(--light-end, 100%)) / 2),
     rgb(0 0 0 / 0) var(--light-end, 100%)

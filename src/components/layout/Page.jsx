@@ -178,7 +178,14 @@ export function Page({ index, dissolve = false, className = '', children }) {
         const total = bandH + spill;
         write(light, lc, 'top', `${bandTopEl.toFixed(0)}px`);
         write(light, lc, 'height', `${total.toFixed(0)}px`);
-        writeCustom(light, lc, '--light-solid', `${((bandH / total) * 55).toFixed(1)}%`);
+        const solid = (bandH / total) * 55;
+        // 위쪽도 흐려서 끝낸다. 다만 처음부터는 아니다 —
+        // 1단계는 "가장자리부터 안쪽으로"라 위 가장자리도 빛나야 한다.
+        // 종이가 옅어지기 시작하면(2단계) 그때부터 위를 걷어서, 남은 빛이
+        // 화면 위에 걸린 판때기가 아니라 아래에서 번져 올라온 것으로 읽히게 한다.
+        const topSpan = Math.min((bandH * 0.4 * s2) / total * 100, solid * 0.8);
+        writeCustom(light, lc, '--light-top', `${topSpan.toFixed(1)}%`);
+        writeCustom(light, lc, '--light-solid', `${solid.toFixed(1)}%`);
         writeCustom(light, lc, '--light-end', `${((bandH / total) * 100 + 42).toFixed(1)}%`);
 
         // 빛은 색을 덧칠하는 게 아니라 밝기를 올려야 한다.
