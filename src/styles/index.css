@@ -1,0 +1,360 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------
+   디자인 토큰
+   --bg / --fg 는 BackgroundStage 가 스크롤에 따라 매 프레임 갱신한다.
+   나머지는 고정값.
+   --------------------------------------------------------------- */
+@theme {
+  --color-accent: #e0a75c;
+  --color-clay: #b4705a;
+
+  --font-serif: 'Gowun Batang', 'Nanum Myeongjo', serif;
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+}
+
+:root {
+  --bg: #0d0e11;
+  --fg: #d8d6d1;
+  /* 담벼락에 글이 쌓일수록 3막이 미세하게 밝아진다 (LanternRow 가 갱신) */
+  --wall-lift: 0;
+  /* 종이 면의 불투명한 색. 페이지 위에 얹히는 요소(퀴즈 진행바 등)가
+     같은 값을 써야 종이 위에 네모난 이음매가 생기지 않는다. */
+  --paper: color-mix(in srgb, var(--fg) 3%, var(--bg));
+  color-scheme: dark light;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.75;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+/* ---------------------------------------------------------------
+   유틸리티
+   --------------------------------------------------------------- */
+@utility text-ink {
+  color: var(--fg);
+}
+
+/* 본문 보조 톤 — 배경이 바뀌어도 대비가 유지되도록 fg 기준 혼합 */
+@utility text-soft {
+  color: color-mix(in srgb, var(--fg) 66%, transparent);
+}
+
+@utility text-faint {
+  color: color-mix(in srgb, var(--fg) 40%, transparent);
+}
+
+@utility border-hair {
+  border-color: color-mix(in srgb, var(--fg) 16%, transparent);
+}
+
+@utility surface {
+  background-color: color-mix(in srgb, var(--fg) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
+}
+
+@utility serif {
+  font-family: var(--font-serif);
+  letter-spacing: -0.02em;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+/* 한글 줄바꿈: 단어 중간에서 끊기지 않게 */
+@utility kr {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* ---------------------------------------------------------------
+   등장 애니메이션 (transform / opacity 만 사용)
+   --------------------------------------------------------------- */
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+  transition:
+    opacity 900ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 900ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.reveal[data-visible='true'] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+/* ---------------------------------------------------------------
+   카드 뒤집기
+   --------------------------------------------------------------- */
+.flip-scene {
+  perspective: 1600px;
+}
+
+.flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 900ms cubic-bezier(0.4, 0.1, 0.2, 1);
+  will-change: transform;
+}
+
+.flip-inner[data-flipped='true'] {
+  transform: rotateY(180deg);
+}
+
+.flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* 뒷면(결과)이 흐름 안에 있어 카드 높이를 결정한다.
+   앞면은 그 위에 겹쳐 두므로 뒤집어도 높이가 튀지 않는다. */
+.flip-face-back {
+  transform: rotateY(180deg);
+}
+
+.flip-face-front {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---------------------------------------------------------------
+   등불
+   --------------------------------------------------------------- */
+@keyframes lantern-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+.lantern-enter {
+  animation: lantern-in 700ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.lantern-flame {
+  animation: flicker 3.6s ease-in-out infinite;
+  animation-delay: var(--flicker-delay, 0s);
+}
+
+/* ---------------------------------------------------------------
+   잔치 연출 — 은은하게 떠오르는 빛
+   --------------------------------------------------------------- */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.7);
+  }
+  22% {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(var(--drift, 0px), -160px, 0) scale(1);
+  }
+}
+
+.ember {
+  animation: rise var(--dur, 4.5s) ease-out var(--delay, 0s) both;
+  will-change: transform, opacity;
+}
+
+@keyframes glow-swell {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  40% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+.glow-swell {
+  animation: glow-swell 2.6s ease-out both;
+}
+
+/* ---------------------------------------------------------------
+   책 메타포 (상위 레이어)
+
+   아래 값들은 전부 Page 컴포넌트가 스크롤 진행도에 맞춰 인라인으로 쓴다.
+   여기에는 정적인 배치와 폴백만 둔다.
+   --------------------------------------------------------------- */
+.page {
+  position: relative;
+}
+
+/* 종이 면. 바탕보다 아주 조금 밝다 — 넘길 때 이 면이 통째로 움직여야
+   페이지가 넘어가는 것으로 읽힌다. --fg 기준이라 배경이 바뀌어도 따라온다. */
+.page-content {
+  position: relative;
+  background-color: var(--paper);
+}
+
+/* 바깥쪽 종이 끝(小口). 빛을 받는 쪽이라 밝게 마감한다. */
+.page-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: clamp(16px, 3vw, 52px);
+  pointer-events: none;
+  border-right: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, var(--fg) 4%, transparent) 55%,
+    color-mix(in srgb, var(--fg) 11%, transparent) 100%
+  );
+}
+
+/* 제본 쪽 접힘. 어두워지는 쪽이 있어야 반대쪽이 종이 끝으로 읽힌다. */
+.page-gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: clamp(18px, 4vw, 72px);
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    rgb(0 0 0 / 0.26) 0%,
+    rgb(0 0 0 / 0.08) 42%,
+    transparent 100%
+  );
+}
+
+/* 소멸 1~2단계의 빛.
+   top/height 는 Page 가 매 프레임 "화면에 남아 있는 페이지 영역"으로 맞춰 준다. */
+.page-light {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* 소멸 3단계에서 흘러내린 뒤 4막의 상시 조명으로 남는다 */
+.table-light {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 0;
+  width: min(150vw, 1400px);
+  height: 80vh;
+  margin-left: calc(min(150vw, 1400px) / -2);
+  pointer-events: none;
+  opacity: var(--flow-o, 0);
+  transform: translate3d(0, var(--flow-y, 5vh), 0);
+  /* 단계가 적으면 이만한 면적에서 8비트 경계가 동심원 띠로 드러난다.
+     촘촘하게 끊어 부드럽게 떨어뜨린다. */
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--color-accent) 52%, transparent) 0%,
+    color-mix(in srgb, var(--color-accent) 43%, transparent) 18%,
+    color-mix(in srgb, var(--color-accent) 32%, transparent) 34%,
+    color-mix(in srgb, var(--color-accent) 21%, transparent) 50%,
+    color-mix(in srgb, var(--color-accent) 12%, transparent) 65%,
+    color-mix(in srgb, var(--color-accent) 5%, transparent) 80%,
+    color-mix(in srgb, var(--color-accent) 1%, transparent) 92%,
+    transparent 100%
+  );
+  will-change: transform, opacity;
+}
+
+/* ---------------------------------------------------------------
+   접근성
+   --------------------------------------------------------------- */
+:where(a, button, input, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.sr-only-focusable:not(:focus):not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  .flip-inner {
+    transition: none;
+  }
+
+  /* 책 메타포: 넘김과 소멸을 생략하고 200ms 크로스페이드로 대체한다.
+     위의 일괄 0.001ms 규칙보다 뒤에 와야 하므로 여기서 다시 지정한다. */
+  .page-content,
+  .table-light {
+    transition: opacity 200ms linear !important;
+  }
+
+  /* 종이 면과 가장자리는 움직임이 아니라 정적인 표현이므로 남겨 둔다.
+     소멸용 빛 레이어만 걷는다. */
+  .page-light {
+    display: none;
+  }
+
+  .table-light {
+    transform: translate3d(0, 38vh, 0) !important;
+  }
+}
