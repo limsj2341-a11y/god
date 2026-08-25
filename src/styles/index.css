@@ -16,6 +16,8 @@
 
 :root {
   --bg: #0d0e11;
+  /* --fg 는 스크롤에 따라 바뀌지 않는다. 1~3막이 쓰는 값이고,
+     4막은 아래에서 자기 값으로 덮어쓴다. BackgroundStage 주석 참고. */
   --fg: #d8d6d1;
   /* 담벼락에 글이 쌓일수록 3막이 미세하게 밝아진다 (LanternRow 가 갱신) */
   --wall-lift: 0;
@@ -274,6 +276,17 @@ body {
   opacity: 0;
 }
 
+/* 4막은 자기 글자색을 쓴다.
+   전역 --fg 를 따라가면 3막→4막 한가운데에서 배경과 같은 밝기가 되거나,
+   갈아타는 순간이 눈에 띈다. 대신 --act4-in 으로 서서히 떠오른다. */
+#act4 {
+  --fg: #16171a;
+}
+
+.act4-arrive {
+  opacity: var(--act4-in, 1);
+}
+
 /* 소멸 3단계에서 흘러내린 뒤 4막의 상시 조명으로 남는다 */
 .table-light {
   position: fixed;
@@ -346,7 +359,8 @@ body {
   /* 책 메타포: 넘김과 소멸을 생략하고 200ms 크로스페이드로 대체한다.
      위의 일괄 0.001ms 규칙보다 뒤에 와야 하므로 여기서 다시 지정한다. */
   .page-content,
-  .table-light {
+  .table-light,
+  .act4-arrive {
     transition: opacity 200ms linear !important;
   }
 

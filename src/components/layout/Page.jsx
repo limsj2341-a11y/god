@@ -92,6 +92,7 @@ export function Page({ index, dissolve = false, className = '', children }) {
           if (lightRef.current) write(lightRef.current, lc, 'opacity', '0');
           writeVar(rc, '--flow-o', past ? '0.34' : '0');
           writeVar(rc, '--flow-y', '38vh');
+          writeVar(rc, '--act4-in', '1'); // 모션 축소에서는 4막을 그냥 띄워 둔다
         }
         return;
       }
@@ -207,6 +208,11 @@ export function Page({ index, dissolve = false, className = '', children }) {
       writeVar(rc, '--flow-y', `${(5 + 33 * s3).toFixed(2)}vh`);
       // 배경이 밝아질수록 같은 알파가 과해지므로 끝에서 낮춘다
       writeVar(rc, '--flow-o', (s3 * (0.42 - 0.08 * s3)).toFixed(3));
+
+      // 4막이 도착하는 정도. 4막은 자기 글자색(어두움)을 이미 쓰고 있고,
+      // 이 값으로 서서히 떠오른다. 처음에는 어두운 바탕에 어두운 글자라
+      // 보이지 않는데, 그게 맞다 — 아직 도착하지 않은 것이다.
+      writeVar(rc, '--act4-in', easeSoft(stage(d, 0.3, 0.9)).toFixed(3));
     },
     [reduced, dissolve],
   );

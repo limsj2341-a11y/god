@@ -8,7 +8,7 @@ import { act4, site } from '../../data/content';
 
 export function Act4Feast() {
   return (
-    <Section id="act4" index={3}>
+    <Section id="act4" index={3} innerClassName="act4-arrive">
       <Reveal>
         <ActHeading eyebrow={act4.eyebrow} title={act4.title} />
       </Reveal>

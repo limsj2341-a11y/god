@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useScrollProgress } from '../../hooks/useScrollProgress';
 import { ACTS } from '../../theme/palette';
-import { easeSnap, easeTrailing, sampleStops } from '../../lib/color';
+import { easeTrailing, sampleStops } from '../../lib/color';
 
 /**
  * 스크롤 위치에 따라 배경/글자 색을 보간해 CSS 변수(--bg, --fg)에 직접 쓴다.
@@ -15,12 +15,6 @@ import { easeSnap, easeTrailing, sampleStops } from '../../lib/color';
  * 이 컴포넌트는 아무것도 렌더링하지 않는다. 스크롤마다 state 를 갱신하면
  * 트리 전체가 리렌더되므로, DOM 스타일만 직접 만진다.
  */
-
-/** 글자 색 보간을 끊어 쓰는 단계 수. 아래 handleScroll 의 주석 참고. */
-const FG_STEPS = 12;
-
-/** 글자 색은 회색 지대를 건너뛴다. color.js 의 easeSnap 주석 참고. */
-const EASE_FG = easeSnap(0.55, 0.07);
 
 /**
  * 문서 기준 top.
@@ -39,7 +33,7 @@ function documentTop(el) {
 }
 
 export function BackgroundStage({ onActChange }) {
-  const stopsRef = useRef({ positions: [], bg: [], fg: [] });
+  const stopsRef = useRef({ positions: [], bg: [] });
   const activeRef = useRef(-1);
 
   const measure = useCallback(() => {
@@ -48,7 +42,6 @@ export function BackgroundStage({ onActChange }) {
 
     const positions = [];
     const bg = [];
-    const fg = [];
 
     for (const el of els) {
       const act = ACTS[Number(el.dataset.act)];
@@ -64,10 +57,9 @@ export function BackgroundStage({ onActChange }) {
 
       positions.push(arrive, depart);
       bg.push(act.bg, act.bg);
-      fg.push(act.fg, act.fg);
     }
 
-    stopsRef.current = { positions, bg, fg };
+    stopsRef.current = { positions, bg };
   }, []);
 
   // 레이아웃이 바뀔 때만 다시 잰다 (스크롤 프레임 안에서 레이아웃을 읽지 않도록)
@@ -87,7 +79,7 @@ export function BackgroundStage({ onActChange }) {
 
   const handleScroll = useCallback(
     ({ scrollY, viewportH }) => {
-      const { positions, bg, fg } = stopsRef.current;
+      const { positions, bg } = stopsRef.current;
       if (positions.length === 0) return;
 
       // 판단 기준은 뷰포트 중앙 — 화면 가운데 있는 막의 색이 지배한다
@@ -95,18 +87,18 @@ export function BackgroundStage({ onActChange }) {
 
       const root = document.documentElement;
 
-      // 배경은 넓은 단색 면이라 한 단계만 건너뛰어도 띠가 보인다 — 매끄럽게 둔다.
-      root.style.setProperty('--bg', sampleStops(bg, positions, focus, 0, easeTrailing));
-
-      // 글자 색은 배경을 따라가지 않고 한 지점에서 갈아탄다.
-      // 같은 곡선으로 천천히 따라가면 중간에서 배경과 글자가 같은 밝기가 되어
-      // 본문이 통째로 사라진다(3막→4막 한가운데에서 실제로 그랬다).
+      // 배경만 보간한다. 글자 색은 건드리지 않는다.
       //
-      // 덤으로 성능도 여기서 나온다. --fg 가 바뀌면 화면에 보이는 글리프가
-      // 전부 다시 래스터화되고, 파생 유틸(text-soft / border-hair / surface 의
-      // color-mix)도 함께 재계산된다. 갈아타는 구간이 좁을수록 그 횟수가 줄고,
-      // 12단계 양자화가 남은 프레임을 더 줄인다(측정: 20.9ms → 7ms).
-      root.style.setProperty('--fg', sampleStops(fg, positions, focus, FG_STEPS, EASE_FG));
+      // 전에는 --fg 도 같이 보간했는데, 어두운배경+밝은글자에서
+      // 밝은배경+어두운글자로 가는 도중 두 색이 서로를 통과하면서 4막 본문이
+      // 통째로 사라졌다. 한 지점에서 갈아타게 고쳤더니 이번엔 글자색이 "탁"
+      // 하고 튀었다. 둘 다 같은 뿌리였다 — 하나의 --fg 로 두 세계를 다 덮으려 한 것.
+      //
+      // 지금은 1~3막이 --fg 를 밝은 값으로 계속 쓰고, 4막은 자기 섹션에서
+      // 어두운 값으로 덮어쓴 뒤 내용을 서서히 띄운다(--act4-in). 갈아타는
+      // 순간 자체가 없다. 덤으로 램프 구간에서 글리프 재래스터도 사라져서
+      // 프레임도 같이 좋아진다.
+      root.style.setProperty('--bg', sampleStops(bg, positions, focus, 0, easeTrailing));
 
       let nearest = 0;
       let best = Infinity;

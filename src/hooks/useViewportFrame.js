@@ -42,10 +42,13 @@ export function useViewportFrame(ref, onFrame, { rootMargin = '30% 0px' } = {}) 
     };
 
     const stop = () => {
-      if (!raf) return;
-      cancelAnimationFrame(raf);
-      raf = 0;
-      // 루프를 끄기 전에 마지막 상태를 확정해 둔다 (0 또는 1 로 고정)
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      // 루프가 한 번도 안 돌았더라도 최종 상태는 확정해 둔다.
+      // 4막으로 바로 이동한 경우처럼, 관찰 대상이 처음부터 화면 밖이면
+      // 여기서 값을 안 써 주면 4막이 뜨지 않은 채로 남는다.
       measure();
     };
 
