@@ -3,6 +3,7 @@ import { BackgroundStage } from './components/layout/BackgroundStage';
 import { ActNav } from './components/layout/ActNav';
 import { Page } from './components/layout/Page';
 import { TableLight } from './components/layout/TableLight';
+import { ScrollIntro } from './components/layout/ScrollIntro';
 import { Act1Leaving } from './components/act1/Act1Leaving';
 import { Act2TwoSons } from './components/act2/Act2TwoSons';
 import { Act3ElderBrother } from './components/act3/Act3ElderBrother';
@@ -23,6 +24,9 @@ export default function App() {
 
       <BackgroundStage onActChange={setActiveAct} />
       <ActNav active={activeAct} />
+
+      {/* 첫 화면에만 잠깐 얹히는 시작 안내 */}
+      <ScrollIntro />
 
       {/* 3막에서 흘러내린 빛이 여기 남아 4막의 식탁 조명이 된다 (본문 뒤) */}
       <TableLight />
