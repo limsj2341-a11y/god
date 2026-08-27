@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -13,6 +14,13 @@ const BASE = '/';
 export default defineConfig({
   base: BASE,
   plugins: [react(), tailwindcss()],
+  // shadcn 계열 컴포넌트가 '@/lib/utils' 같은 절대 경로로 서로를 부른다.
+  // jsconfig.json 의 paths 와 같은 값을 여기에도 둬야 Vite 가 해석한다 — 둘은 한 짝이다.
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

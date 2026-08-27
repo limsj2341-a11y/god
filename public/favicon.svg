@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 27" width="20" height="27">
+  <!-- 사이트의 등불(Lantern)과 같은 모양. 탭에서도 같은 것이 보이게 한다. -->
+  <g fill="none" stroke="#e0a75c" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.75">
+    <path d="M10 1v3" />
+    <path d="M5 5h10l-1 2H6L5 5z" />
+    <path d="M6.2 7h7.6l1.2 12a1.6 1.6 0 0 1-1.6 1.8H6.6A1.6 1.6 0 0 1 5 19L6.2 7z" />
+    <path d="M7 22.6h6" />
+  </g>
+  <path d="M10 10.4c1.9 1.6 2.8 3 2.8 4.4a2.8 2.8 0 1 1-5.6 0c0-1.4.9-2.8 2.8-4.4z" fill="#e0a75c" />
+</svg>

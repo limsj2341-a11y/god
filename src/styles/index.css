@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------
    디자인 토큰
@@ -25,6 +29,42 @@
      같은 값을 써야 종이 위에 네모난 이음매가 생기지 않는다. */
   --paper: color-mix(in srgb, var(--fg) 3%, var(--bg));
   color-scheme: dark light;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  /* shadcn 기본값은 무채색 회색이다. 그런데 아래 @theme inline 이
+     --color-accent: var(--accent) 로 다리를 놓기 때문에, 그대로 두면 이 사이트가
+     쓰던 등불색 #e0a75c 가 회색으로 덮인다 — bg-accent 를 쓰는 자리가 20곳 넘는다.
+     그래서 shadcn 쪽 accent 를 이 사이트 색으로 맞춘다. 값은 한 곳에서만 정해진다. */
+  --accent: #e0a75c;
+  --accent-foreground: #16171a;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 html {
@@ -100,22 +140,10 @@ body {
 }
 
 /* ---------------------------------------------------------------
-   등장 애니메이션 (transform / opacity 만 사용)
+   등장 애니메이션은 이제 motion 이 맡는다 (components/layout/Reveal.jsx).
+   여기 있던 .reveal 규칙은 그쪽으로 옮겨 갔다 — 값(900ms / 18px / 곡선)은
+   lib/anim.js 가 그대로 들고 있다.
    --------------------------------------------------------------- */
-.reveal {
-  opacity: 0;
-  transform: translate3d(0, 18px, 0);
-  transition:
-    opacity 900ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    transform 900ms cubic-bezier(0.22, 0.61, 0.36, 1);
-  transition-delay: var(--reveal-delay, 0ms);
-  will-change: opacity, transform;
-}
-
-.reveal[data-visible='true'] {
-  opacity: 1;
-  transform: translate3d(0, 0, 0);
-}
 
 /* ---------------------------------------------------------------
    카드 뒤집기
@@ -185,43 +213,728 @@ body {
 }
 
 /* ---------------------------------------------------------------
-   잔치 연출 — 은은하게 떠오르는 빛
+   잔치 연출(불씨·빛 부풀기)은 anime 타임라인으로 옮겼다.
+   act4/FeastMoment.jsx 참고 — 빛과 불씨가 같은 시계를 봐야 해서 합쳤다.
    --------------------------------------------------------------- */
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) scale(0.7);
-  }
-  22% {
-    opacity: 0.75;
-  }
-  to {
-    opacity: 0;
-    transform: translate3d(var(--drift, 0px), -160px, 0) scale(1);
+
+/* ---------------------------------------------------------------
+   책 — 화면에 고정된 물체
+
+   본문은 이 위를 흘러 지나간다. 책은 제자리에 있고 글만 넘어가므로,
+   책 안쪽에 스크롤 상자를 만들지 않아도 "지면 위의 글"로 읽힌다.
+   (상자를 만들면 모바일 관성 스크롤·주소창 접힘·키보드 이동을 전부 잃는다.)
+   --------------------------------------------------------------- */
+:root {
+  /* 지면 크기 — 화면 안에 들어가는 가장 큰 3:4 상자.
+     책은 세로로 긴 물건이라 가로(16:9)는 슬라이드로 보였고,
+     9:16 은 너무 좁아 본문 한 줄이 373px 밖에 안 나왔다. 3:4 가 책의 비율이다.
+     비율을 고정하면 어느 화면에서 봐도 같은 책이다. */
+  /* 3:4 를 지키면서 화면 안에 들어가는 가장 큰 상자.
+     가로로 넓은 화면에서는 위아래 면이, 세로로 긴 화면에서는 옆면이 화면 끝에
+     닿는다 — 어느 쪽이든 두 변은 화면에 붙는다.
+
+     높이만 못박아 두었더니 세로로 긴 화면에서 책이 화면보다 넓어져
+     좌우가 잘렸다(태블릿 753 화면에 책 777, 모바일은 좌우 122px 씩). */
+  --book-w: min(100vw, calc(100dvh * 3 / 4));
+  --book-h: min(100dvh, calc(100vw * 4 / 3));
+  /* 책장 바닥선. 우리 책이 서는 칸의 바닥이다. 화면 중앙에서 아래로 잰다. */
+  --shelf-floor: 4vh;
+  /* 꽂혀 있을 때 책 크기(화면 높이 대비). 칸 안에 들어가야 한다. */
+  --shelf-scale: 0.1;
+  /* 칸 하나의 안쪽 높이. 책장의 모든 치수가 여기서 나온다 —
+     사진처럼 "책 한 권의 키"가 기준이다. */
+  --case-row-h: clamp(76px, 12vh, 116px);
+  /* 우리 책이 꽂힌 자리. 화면 중앙에서 왼쪽으로 이만큼. */
+  --our-x: -30px;
+  /* 우리 책이 선 칸이 위에서 몇 번째인지(0부터). 틀의 위치를 여기서 잰다. */
+  --case-our-row: 2;
+  /* 우리 책이 설 빈자리. 꽂혀 있을 때 책 폭은 곧 두께다. */
+  --shelf-gap: calc(var(--book-depth) + 16px);
+  --book-open: 0;
+  --book-out: 0;
+  /* 책의 두께. 네 면이 이 값으로 상자를 이룬다.
+     화면에 보이는 폭이 곧 이 값이다(꽂혀 있을 때 책등이 정면을 본다).
+     46px 은 옆 책들(18~32px)보다 두꺼워 우리 책만 뚱뚱해 보였다. */
+  --book-depth: 26px;
+  --shelf-out: 1;
+  --book-veil: 1;
+  --turn: 0;
+  --turn-on: 0;
+  --turn-veil: 0;
+  /* 3막이 흩어지면 책도 함께 사라진다. --act4-in 은 Page(dissolve)가 써 준다. */
+  --book-gone: var(--act4-in, 0);
+}
+
+.book-runway {
+  height: 100dvh;
+}
+
+.book-stage {
+  position: fixed;
+  inset: 0;
+  /* 그리드로 가운데 놓지 않는다. 책이 화면보다 넓으면(모바일 390 화면에 책 633)
+     그리드가 시작 모서리 넘침을 피해 오른쪽으로 밀어낸다 — 실측 139px 이나
+     어긋났다. unsafe center 로도 막히지 않았다. 직접 좌표로 세운다. */
+  pointer-events: none;
+  /* 표지가 젖혀질 때 깊이가 있어야 종이가 아니라 판으로 보이지 않는다 */
+  perspective: 2400px;
+  opacity: calc(1 - var(--book-gone));
+}
+
+/* 지면과 제본은 글 아래(main 은 z-10) */
+.book-stage-back {
+  z-index: 1;
+}
+
+/* 지면의 끝과 덮개는 글 위.
+   한 레이어 안에서 z-index 만 올려서는 안 된다 — 부모가 본문보다 아래면
+   자식은 그 쌓임 맥락에 갇혀 절대 본문을 덮지 못한다. */
+.book-stage-front {
+  z-index: 13;
+}
+
+.book {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--book-w);
+  height: var(--book-h);
+  transform-style: preserve-3d;
+  /* 책장에 꽂혀 있을 때(--book-out 0)는 작고 옆으로 돌아서 있어 책등만 보인다.
+     스크롤하면 앞으로 나오면서(scale) 이쪽으로 돌아선다(rotateY).
+     transform 은 오른쪽부터 적용되므로 "키운 뒤 → 돌리고 → 옮긴다" 순이다. */
+  /* 세로로 띄우지 않는다. 조금이라도 올리면 옆 책들과 밑동이 어긋나
+     책장에 얹힌 것이 아니라 떠 있는 것으로 보인다(실측: 10px 떴다).
+
+     각도는 양수다. rotateY 가 음수면 오른쪽 모서리(책배)가 앞으로 나오는데,
+     책장에서 꺼낼 때 앞을 향하는 것은 책등이다. 처음에 -88deg 로 두었더니
+     책배를 보면서 꺼내는 꼴이 됐다. 양수여야 왼쪽(책등)이 이쪽을 본다.
+
+     각도는 정확히 90도다. 88 로 두었더니 앞표지가 2도만큼 남아, 책등 하나가
+     아니라 갈색 덩어리로 보였다(실측: 옆 책들보다 두꺼웠다). */
+  /* 꽂혀 있는 동안에는 널 위에 서야 한다. 책은 화면 한가운데 있고 높이가
+     100dvh 이므로, 0.22 로 줄이면 밑동이 화면 중앙에서 11dvh 아래에 온다.
+     바닥선(12vh)까지 그 차이만큼 내린다. */
+  /* 책등은 책의 왼쪽 모서리에서 뒤로 뻗는다. 꽂혀 있을 때 화면에서는 그것이
+     책 중심의 왼쪽에 놓이므로, 책등 한가운데는 중심보다 두께의 절반만큼
+     왼쪽이다. 그만큼 오른쪽으로 밀어 책장의 빈자리에 맞춘다. */
+  transform: translate(-50%, -50%)
+    translateX(calc((1 - var(--book-out)) * (var(--book-depth) / 2 + var(--our-x))))
+    translateY(
+      calc((1 - var(--book-out)) * (var(--shelf-floor) - var(--shelf-scale) * 50dvh))
+    )
+    rotateY(calc((1 - var(--book-out)) * 90deg))
+    scale(calc(var(--shelf-scale) + (1 - var(--shelf-scale)) * var(--book-out)));
+}
+
+/* 책등 — 책장에 꽂혀 있는 동안 이쪽을 향하는 면.
+   왼쪽 모서리에서 뒤로 꺾여 서 있다. 책이 돌아설수록 옆으로 사라진다. */
+.book-spine-face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--book-depth);
+  z-index: 3;
+  transform-origin: left center;
+  /* 두 가지를 동시에 만족해야 한다.
+     (1) 뒤(-Z)로 뻗어 뒤표지(z = -depth)와 만날 것 — 아니면 상자가 열려
+         옆면이 26px 떨어져 보인다(실측: 다른 면은 x 707 인데 뒤표지만 680).
+     (2) 바깥(-X)을 향할 것 — 아니면 뒷면이 되어 통째로 안 그려진다.
+     회전 하나로는 둘을 같이 못 한다. rotateY(90deg) 는 (1)은 되지만 법선이
+     +X 라 (2)가 깨졌다. 그래서 바깥을 향하도록 -90deg 로 돌리고,
+     뒤로 미는 일은 translateZ 에 따로 맡긴다. */
+  transform: translateZ(calc(var(--book-depth) * -1)) rotateY(-90deg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 옆 책들이 hsl(… 30% 38%) 근처라, 전에 쓰던 #241a12 는 그 사이에서
+     검은 틈처럼 보였다. 주인공 책이 배경으로 가라앉으면 안 된다. */
+  background:
+    linear-gradient(to right, #3b2117 0%, #74432c 40%, #4a2719 100%);
+  box-shadow: inset -2px 0 6px rgb(0 0 0 / 0.5);
+  opacity: var(--shelf-out);
+}
+
+/* 책배 — 오른쪽 모서리에서 뒤로 꺾여 선다. 쌓인 종이의 결. */
+.book-fore-block {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--book-depth);
+  z-index: 3;
+  transform-origin: right center;
+  /* 책등과 같은 구성. 이쪽은 바깥이 +X 라 회전 부호만 반대다. */
+  transform: translateZ(calc(var(--book-depth) * -1)) rotateY(90deg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background:
+    repeating-linear-gradient(
+      to right,
+      #e8e1d4 0px,
+      #e8e1d4 1px,
+      #cfc6b5 1px,
+      #cfc6b5 2px
+    );
+  box-shadow: inset 0 0 10px rgb(0 0 0 / 0.35);
+  opacity: var(--shelf-out);
+}
+
+/* 뒤표지 — 두께만큼 뒤에 선다.
+   세 면 모두 --shelf-out 으로 걷는다. 이 면들은 앞 레이어(z-13)에 있어야
+   막(veil) 위에 그려지는데, 그대로 두면 책이 다 펴진 뒤에도 본문 위에 남아
+   지면을 통째로 덮는다(실측: 1막 한복판인데 화면이 갈색 표지뿐이었다).
+   책이 다 나오면 두께는 볼 일이 없으므로 그때 지운다. */
+.book-back {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  transform: translateZ(calc(var(--book-depth) * -1));
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: linear-gradient(135deg, #3a2b1d 0%, #241a12 60%, #2e2218 100%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 12%, transparent);
+  opacity: var(--shelf-out);
+}
+
+.book-spine-title {
+  /* 책등 글씨는 세로로 선다. 크기는 책등 두께에 맞춘다 — 화면 폭과는 무관하다. */
+  writing-mode: vertical-rl;
+  font-size: calc(var(--book-depth) * 0.42);
+  line-height: 1;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--color-accent) 85%, #f6f3ee);
+  /* 꽂혀 있을 때 이 글씨는 한 축으로만 눌린다.
+     책은 rotateY(90deg) 로 돌아서 있어 책등의 두께(Z)는 화면에서 거의 그대로
+     나오는데(실측: 26px 책등이 화면에서 27px), 높이만 --shelf-scale 만큼
+     줄어든다(900px 이 92px). 그래서 세로 글줄이 10 배로 납작해져 얼룩으로만
+     보였다(실측: "탕부 하나님" 다섯 글자가 7px). 눌린 축만 되돌린다. */
+  transform: scaleY(
+    calc(1 / (var(--shelf-scale) + (1 - var(--shelf-scale)) * var(--book-out)))
+  );
+}
+
+/* 막 인디케이터는 화면 끝이 아니라 책 옆에 선다.
+   책이 화면보다 좁아지면서 레일만 멀찍이 남아 무엇에 붙은 표시인지
+   알기 어려워졌다(실측: 책 오른쪽 끝 1058, 레일 1330).
+   책이 화면보다 넓을 때는 기댈 자리가 없으므로 화면 끝으로 물러난다. */
+.act-rail {
+  /* 왼쪽 모서리를 책 오른쪽 밖에 못박는다.
+     right 로 잡았더니 레이블이 왼쪽으로 자라면서 책 위로 파고들었다
+     (실측: 책 오른쪽 끝 1057 인데 레일 왼쪽이 1001). 자라는 방향이
+     왼쪽이므로 왼쪽을 기준으로 세워야 한다. */
+  left: calc(50% + var(--book-w) / 2 + 0.75rem);
+  right: auto;
+}
+
+/* 책이 화면을 다 채우면 옆에 설 자리가 없다 — 화면 안쪽으로 물린다. */
+@media (max-aspect-ratio: 3 / 4) {
+  .act-rail {
+    left: auto;
+    right: 0.75rem;
   }
 }
 
-.ember {
-  animation: rise var(--dur, 4.5s) ease-out var(--delay, 0s) both;
-  will-change: transform, opacity;
+/* ---------------------------------------------------------------
+   책장
+   책이 다 나오면(--shelf-out 0) 물러난다.
+   --------------------------------------------------------------- */
+/* place-items:center 로 두면 널이 그리드 칸에 갇혀 책 폭만큼만 그려진다
+   (실측: 널 왼쪽 끝이 책 왼쪽 모서리와 정확히 같았다).
+   자식들은 각자 absolute 로 서므로 그리드가 필요 없다. */
+.shelf {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  opacity: var(--shelf-out);
 }
 
-@keyframes glow-swell {
-  from {
-    opacity: 0;
-    transform: scale(0.85);
-  }
-  40% {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-    transform: scale(1.35);
+/* 책과 널이 같은 바닥선에 서야 한다.
+   전에는 행과 널을 따로 배치해서 옆 책들이 널 위에 떠 있었다.
+   행의 아랫변을 널의 윗면에 맞춘다. */
+/* 장 위에 놓인 것들 */
+/* 칸 안에 선 큰 화병 */
+.shelf-tallvase {
+  width: 48px;
+  height: calc(0.82 * var(--case-row-h));
+  border-radius: 34% 34% 16% 16% / 14% 14% 8% 8%;
+  background: linear-gradient(to right, #2f4a72 0%, #4a6ea3 50%, #273d5e 100%);
+}
+
+/* 책장 틀.
+   우리 책이 선 칸의 바닥이 --shelf-floor 에 오도록 위치를 잡는다.
+   그 위로 --case-our-row 칸이 더 있으므로 그만큼 위에서 시작한다. */
+.bookcase {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--shelf-floor) - (var(--case-our-row) + 1) * var(--case-row-h));
+  transform: translateX(-50%);
+  /* 사진의 책장은 한 칸의 안폭이 칸 높이의 2.3 배쯤이었다.
+     폭을 px 로 못박으면 화면 높이가 달라질 때 비율이 어긋난다. */
+  width: min(84vw, calc(var(--case-row-h) * 2.3 + 44px));
+  display: flex;
+  flex-direction: column;
+  border: 12px solid #6b4a2c;
+  border-radius: 2px;
+  background: linear-gradient(160deg, #3d2a1b 0%, #2f2015 60%, #3a2718 100%);
+  box-shadow:
+    0 18px 40px rgb(0 0 0 / 0.35),
+    inset 0 0 30px rgb(0 0 0 / 0.45);
+}
+
+/* 칸 하나. 아래 널이 곧 다음 칸의 천장이다. */
+.case-row {
+  position: relative;
+  height: var(--case-row-h);
+  display: flex;
+  align-items: flex-end;
+  padding: 0 10px;
+  border-bottom: 8px solid #6b4a2c;
+}
+
+.case-row:last-child {
+  border-bottom: 0;
+}
+
+/* 한 칸을 채우는 책 줄 */
+/* 책은 서로 붙어 선다. 고르게 흩으면(space-around) 울타리 말뚝처럼 보인다 —
+   비는 자리는 데이터에서 G() 로 명시한다. */
+.case-run {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+/* 책 사이의 빈 자리 */
+.shelf-gap {
+  display: block;
+  flex: none;
+  width: calc(var(--g) * 1px);
+}
+
+/* 우리 책이 설 자리를 가운데에 비워 둔다 */
+/* 우리 책이 설 자리를 가운데에 비우되, 좌우 무리는 칸 끝까지 편다.
+   가운데 기준으로만 붙이면 책이 가운데에만 몰리고 양옆이 빈다. */
+.case-side {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 100%;
+}
+
+/* 왼쪽 무리는 오른쪽 끝(우리 책 옆)에 붙여 세운다 */
+.case-side-left {
+  justify-content: flex-end;
+  left: 10px;
+  right: calc(50% + var(--shelf-gap) / 2 - var(--our-x));
+}
+
+.case-side-right {
+  left: calc(50% + var(--shelf-gap) / 2 + var(--our-x));
+  right: 10px;
+}
+
+.shelf-book {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  width: calc(var(--w) * 1px);
+  height: calc(var(--h) * var(--case-row-h));
+  transform-origin: bottom center;
+  transform: rotate(calc(var(--lean, 0) * 1deg));
+  border-radius: 1px 2px 2px 1px;
+  /* 바탕색. --lift 로 권마다 밝기를 흔들어 같은 색상각이라도 달라 보이게 한다. */
+  background-color: hsl(var(--tone) 30% calc(38% + var(--lift, 0) * 1%));
+  background-image: var(--pat, none), var(--shade);
+  background-repeat: no-repeat;
+  --shade: linear-gradient(
+    to right,
+    rgb(0 0 0 / 0.35) 0%,
+    rgb(255 255 255 / 0.12) 42%,
+    rgb(0 0 0 / 0.3) 100%
+  );
+  box-shadow: inset -2px 0 4px rgb(0 0 0 / 0.45);
+}
+
+/* 책등에 적힌 제목.
+   세로로 서고, 책등 폭이 아니라 글자 크기가 읽히는 정도를 정한다.
+   9.5px 아래로 내리면 화면에서 글씨가 아니라 얼룩으로 보였다. */
+.shelf-title {
+  writing-mode: vertical-rl;
+  font-style: normal;
+  font-size: 9.5px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  color: rgb(246 240 228 / 0.86);
+  text-shadow: 0 1px 1px rgb(0 0 0 / 0.55);
+}
+
+/* ── 겉면 무늬 ──
+   책이 다 같은 색 막대로 보이면 책장이 아니라 색띠가 된다.
+   권마다 다른 무늬를 얹는다. 값은 --pat 하나로 전달되고 위에서 겹쳐 그린다. */
+
+/* 위아래에 두른 띠 */
+.pat-bands {
+  --pat: linear-gradient(
+    to bottom,
+    transparent 12%,
+    rgb(255 255 255 / 0.3) 12%,
+    rgb(255 255 255 / 0.3) 16%,
+    transparent 16%,
+    transparent 84%,
+    rgb(255 255 255 / 0.3) 84%,
+    rgb(255 255 255 / 0.3) 88%,
+    transparent 88%
+  );
+}
+
+/* 가운데 제목표 */
+.pat-label {
+  --pat: linear-gradient(
+    to bottom,
+    transparent 38%,
+    rgb(255 255 255 / 0.26) 38%,
+    rgb(255 255 255 / 0.26) 56%,
+    transparent 56%
+  );
+}
+
+/* 촘촘한 가로 줄 */
+.pat-stripes {
+  --pat: repeating-linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0.16) 0px,
+    rgb(255 255 255 / 0.16) 2px,
+    transparent 2px,
+    transparent 9px
+  );
+}
+
+/* 가는 선 하나 */
+.pat-line {
+  --pat: linear-gradient(
+    to bottom,
+    transparent 26%,
+    rgb(0 0 0 / 0.4) 26%,
+    rgb(0 0 0 / 0.4) 29%,
+    transparent 29%
+  );
+}
+
+/* 나란한 두 줄 */
+.pat-twin {
+  --pat: linear-gradient(
+    to bottom,
+    transparent 20%,
+    rgb(255 255 255 / 0.28) 20%,
+    rgb(255 255 255 / 0.28) 23%,
+    transparent 23%,
+    transparent 30%,
+    rgb(255 255 255 / 0.28) 30%,
+    rgb(255 255 255 / 0.28) 33%,
+    transparent 33%
+  );
+}
+
+
+/* 지면. 바탕보다 아주 조금 밝다 — 배경색이 막마다 바뀌어도 따라온다. */
+.book-page {
+  position: absolute;
+  inset: 0;
+  background-color: var(--paper);
+  border-radius: 2px 5px 5px 2px;
+  /* 16:9 로 고정하면서 화면 안에 떠 있는 물체가 됐다.
+     바깥 그림자로 띄우고, 안쪽은 눌러 종이가 묶인 느낌을 남긴다. */
+  box-shadow:
+    inset 0 0 90px rgb(0 0 0 / 0.28),
+    0 22px 60px rgb(0 0 0 / 0.5);
+}
+
+/* 책등 쪽 그늘 */
+.book-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: clamp(18px, 4vw, 72px);
+  background: linear-gradient(
+    to right,
+    rgb(0 0 0 / 0.3) 0%,
+    rgb(0 0 0 / 0.1) 44%,
+    transparent 100%
+  );
+}
+
+/* 바깥쪽 종이 끝(小口). 빛을 받는 쪽이라 밝게 마감한다. */
+.book-fore-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: clamp(14px, 3vw, 52px);
+  border-right: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, var(--fg) 4%, transparent) 55%,
+    color-mix(in srgb, var(--fg) 11%, transparent) 100%
+  );
+}
+
+/* 지면의 위아래 끝.
+   글이 종이 밖으로 나가는 대신 종이 색으로 스며들어 사라진다.
+   본문(z-10)보다 위에 있어야 글을 덮는다. */
+/* 책 바깥 위아래.
+   지면 안쪽 페이드는 종이 위에서 글을 스미게 하는 것이고, 이건 아예 책을
+   벗어난 글을 가리는 것이다. 둘 다 있어야 "책장 안에 든 글"이 된다.
+   .book-stage-front 의 자식이라 3막이 흩어질 때 책과 함께 사라진다. */
+.book-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* 화면과 지면의 높이 차를 위아래로 나눈 만큼. 1px 은 반올림 틈을 메운다. */
+  height: calc((100% - var(--book-h)) / 2 + 1px);
+  background-color: var(--bg);
+  opacity: var(--book-out);
+}
+
+.book-mask-top {
+  top: 0;
+}
+
+.book-mask-bottom {
+  bottom: 0;
+}
+
+/* 16:9 로 고정하면서 책이 화면보다 좁아졌다. 위아래만 가리면
+   글이 책 옆으로 삐져나온다. */
+.book-mask-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* 세로로 긴 화면에서는 책이 화면보다 넓다 — 그때는 가릴 것이 없다. */
+  width: max(0px, calc((100% - var(--book-w)) / 2 + 1px));
+  background-color: var(--bg);
+  /* 책장에 꽂혀 있는 동안에는 가릴 글이 없다. 그때 칠하면 방(벽)을 덮어
+     벽이 책 폭만큼만 보인다. 책이 나오면서 함께 나타난다. */
+  opacity: var(--book-out);
+}
+
+.book-mask-left {
+  left: 0;
+}
+
+.book-mask-right {
+  right: 0;
+}
+
+.book-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: clamp(48px, 9vh, 110px);
+}
+
+.book-fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--paper) 34%, transparent 100%);
+}
+
+.book-fade-bottom {
+  bottom: 0;
+  background: linear-gradient(to top, var(--paper) 34%, transparent 100%);
+}
+
+/* 넘어가는 낱장.
+   막과 막이 맞닿는 자리에서만 잠깐 나타나 왼쪽으로 젖혀진다.
+   불투명한 종이라 글자 위를 지나면 안 되는데, 경계에는 앞뒤 막의 여백이
+   맞붙어 읽을 것이 없다 — BookStage 가 넘김을 그 빈 구간에 맞춰 건다. */
+.book-leaf {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transform: rotateY(calc(var(--turn) * -180deg));
+  /* 양 끝에서 0. 종이가 지면에 납작하게 누워 본문을 가리는 구간을 없앤다. */
+  opacity: calc(var(--turn-on) * var(--turn-veil));
+  will-change: transform;
+}
+
+/* 지면(--paper)과 같은 색으로 두면 종이가 지면 위를 지나가도 보이지 않는다.
+   실제로 안 보였다 — 넘김이 도는데 화면에는 아무 일도 없는 것처럼 읽혔다.
+   들린 종이는 빛을 더 받으므로 조금 밝게 하고, 가장자리에 선을 준다. */
+.book-leaf-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background-color: color-mix(in srgb, var(--fg) 9%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--fg) 16%, transparent);
+}
+
+/* 넘기는 손 쪽. 바깥으로 갈수록 빛을 받는다. */
+.book-leaf-front {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--fg) 7%, transparent) 0%,
+    transparent 18%,
+    transparent 82%,
+    color-mix(in srgb, var(--fg) 5%, transparent) 100%
+  );
+  box-shadow: 18px 0 48px rgb(0 0 0 / 0.55);
+}
+
+/* 젖혀지면서 드러나는 뒷면. 그늘이 반대쪽에 진다. */
+.book-leaf-back {
+  transform: rotateY(180deg);
+  background-image: linear-gradient(
+    to left,
+    color-mix(in srgb, var(--fg) 9%, transparent) 0%,
+    transparent 22%
+  );
+  box-shadow: -18px 0 48px rgb(0 0 0 / 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 종이를 젖히지 않는다. 넘김은 모션 축소에서 생략하기로 한 연출이다. */
+  .book-leaf {
+    display: none;
   }
 }
 
-.glow-swell {
-  animation: glow-swell 2.6s ease-out both;
+/* 책 사이에 놓인 소품. 책만 늘어놓으면 창고처럼 보인다. */
+.shelf-object {
+  display: block;
+  flex: none;
+  align-self: flex-end;
+}
+
+.shelf-jar {
+  width: 34px;
+  height: calc(0.5 * var(--case-row-h));
+  border-radius: 40% 40% 18% 18% / 30% 30% 12% 12%;
+  background: linear-gradient(to right, #6b4a2a 0%, #9a6c3d 45%, #5d3f24 100%);
+}
+
+.shelf-bowl {
+  width: 42px;
+  height: calc(0.2 * var(--case-row-h));
+  border-radius: 0 0 60% 60% / 0 0 100% 100%;
+  background: linear-gradient(to right, #7a4a34 0%, #a9694a 50%, #6a3f2c 100%);
+}
+
+.shelf-box {
+  width: 30px;
+  height: calc(0.28 * var(--case-row-h));
+  border-radius: 2px;
+  background: linear-gradient(to right, #4a5a52 0%, #6d827a 50%, #3f4d46 100%);
+}
+
+/* 덮개. 왼쪽 모서리를 축으로 젖혀진다. */
+.book-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transform: rotateY(calc(var(--book-open) * -172deg));
+  /* 다 젖혀지면 클릭도 그림도 남지 않게 한다 */
+  opacity: calc(1 - var(--book-open) * var(--book-open));
+}
+
+.book-cover-front,
+.book-cover-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.book-cover-front {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2rem;
+  text-align: center;
+  /* 어두운 바탕(#0D0E11) 위에 놓이므로 표지가 그보다 확실히 밝아야
+     "덮인 책"으로 읽힌다. 처음 쓴 #171310 은 바탕과 거의 구분되지 않았다. */
+  background:
+    radial-gradient(120% 90% at 28% 18%, rgb(255 255 255 / 0.1), transparent 62%),
+    linear-gradient(135deg, #4a3826 0%, #33261a 52%, #241a12 100%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent),
+    0 30px 70px rgb(0 0 0 / 0.55);
+}
+
+.book-cover-rule {
+  width: clamp(48px, 12vw, 120px);
+  height: 1px;
+  background: color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+
+.book-cover-title {
+  /* 화면 폭(vw)이 아니라 책 폭을 기준으로 잡는다.
+     vw 로 두었더니 책이 좁아져도 글씨는 그대로 커서 책등 제목 위로 올라탔다. */
+  font-size: clamp(1.5rem, calc(var(--book-w) * 0.13), 4rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: color-mix(in srgb, var(--color-accent) 88%, #f6f3ee);
+}
+
+.book-cover-author {
+  font-size: clamp(0.75rem, 2vw, 0.95rem);
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, #f6f3ee 55%, transparent);
+}
+
+/* 젖혀진 뒤 보이는 안쪽 면 */
+.book-cover-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(to left, #1d1811 0%, #100d0a 100%);
+}
+
+/* 표지가 열리는 동안 뒤의 본문을 눌러 둔다.
+   반쯤 열렸는데 글이 또렷하면, 책을 여는 것이 아니라 글 위에 얹혀 있던
+   표지가 치워지는 것으로 보인다. */
+.book-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  background-color: var(--bg);
+  opacity: var(--book-veil, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 표지를 젖히는 3D 회전은 생략하고, 열린 책에서 시작한다.
+     활주로도 없앤다 — 아무 일도 일어나지 않는 한 화면을 굴리게 둘 이유가 없다. */
+  .book-runway {
+    height: 0;
+  }
+
+  .book-cover,
+  .shelf,
+  .book-spine-face {
+    display: none;
+  }
+
+  .book-veil {
+    display: none;
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -236,43 +949,34 @@ body {
 
 /* 종이 면. 바탕보다 아주 조금 밝다 — 넘길 때 이 면이 통째로 움직여야
    페이지가 넘어가는 것으로 읽힌다. --fg 기준이라 배경이 바뀌어도 따라온다. */
+/* 화면에 붙는 막 한 장.
+   sticky 로 붙어 있는 동안 안쪽 글(.page-inner)만 위로 밀린다 —
+   그래서 한 번에 한 막만 화면에 있고, 스크롤이 그 막의 진행을 재생한다.
+   붙어 있을 스크롤 길이는 Page 가 바깥 .page 의 높이로 실어 준다.
+
+   지면 색은 칠하지 않는다. 고정된 책(.book-page)이 이미 칠했고,
+   여기서 또 칠하면 두 겹이 된다. */
 .page-content {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  /* 화면 밖으로 나간 글은 잘라 낸다 — 책장 밖으로 글이 새어 나오면 안 된다. */
+  overflow: hidden;
+}
+
+/* 막 안의 글 상자. 스크롤한 만큼 Page 가 여기를 위로 민다.
+
+   폭을 책에 묶는다. 세로로 긴 책(9:16)은 데스크톱에서 450px 남짓이라,
+   본문 칼럼(max-w-2xl = 672px)을 그대로 두면 글이 책 밖으로 나가
+   좌우 마스크에 잘린다. 지면 안에 든 글이어야 하므로 여기서 가둔다. */
+.page-inner {
   position: relative;
-  background-color: var(--paper);
+  /* 책이 화면보다 넓어도 글은 화면 안에 있어야 한다. */
+  max-width: min(var(--book-w), 100vw);
+  margin-inline: auto;
 }
 
-/* 바깥쪽 종이 끝(小口). 빛을 받는 쪽이라 밝게 마감한다. */
-.page-edge {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  width: clamp(16px, 3vw, 52px);
-  pointer-events: none;
-  border-right: 1px solid color-mix(in srgb, var(--fg) 20%, transparent);
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    color-mix(in srgb, var(--fg) 4%, transparent) 55%,
-    color-mix(in srgb, var(--fg) 11%, transparent) 100%
-  );
-}
 
-/* 제본 쪽 접힘. 어두워지는 쪽이 있어야 반대쪽이 종이 끝으로 읽힌다. */
-.page-gutter {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: clamp(18px, 4vw, 72px);
-  pointer-events: none;
-  background: linear-gradient(
-    to right,
-    rgb(0 0 0 / 0.26) 0%,
-    rgb(0 0 0 / 0.08) 42%,
-    transparent 100%
-  );
-}
 
 /* 소멸 1~2단계의 빛.
    top/height 는 Page 가 매 프레임 "화면에 남아 있는 페이지 영역"으로 맞춰 준다.
@@ -305,6 +1009,14 @@ body {
     rgb(0 0 0 / 0.4) calc((var(--light-solid, 42%) + var(--light-end, 100%)) / 2),
     rgb(0 0 0 / 0) var(--light-end, 100%)
   );
+}
+
+/* 4막은 책으로 감싸지 않지만 글 폭은 같아야 한다.
+   묶지 않았더니 책보다 넓어져(책 600 / 본문 672) 마지막 막에서 글줄이
+   갑자기 벌어졌다. 책이 사라져도 읽던 폭은 이어져야 한다. */
+#act4 > div {
+  max-width: min(var(--book-w), 100vw);
+  margin-inline: auto;
 }
 
 /* 4막은 자기 글자색을 쓴다.
@@ -378,11 +1090,6 @@ body {
     scroll-behavior: auto !important;
   }
 
-  .reveal {
-    opacity: 1;
-    transform: none;
-  }
-
   .flip-inner {
     transition: none;
   }
@@ -412,15 +1119,11 @@ body {
    감축 모션에서는 위 일괄 규칙이 전환을 0 으로 만들어 그냥 사라진다.
    --------------------------------------------------------------- */
 .scroll-intro {
-  /* 뒤가 비쳐야 하지만 읽히면 안 된다. 78% 로 두었더니 안내 글씨가 하필
-     1막 인용문 위에 겹쳐 둘 다 안 읽혔다. 본문은 그림자로만 남기고
-     가운데를 조금 더 눌러 글씨가 놓일 자리를 만든다. */
-  background:
-    radial-gradient(
-      120% 70% at 50% 50%,
-      color-mix(in srgb, var(--bg) 97%, transparent) 0%,
-      color-mix(in srgb, var(--bg) 92%, transparent) 100%
-    );
+  /* 배경을 깔지 않는다.
+     전에는 화면 전체를 --bg 92~97% 로 덮었다. 뒤에 1막 본문이 그대로 있어서
+     안내 글씨와 겹쳐 읽혔기 때문이다. 지금은 그 자리에 덮인 책 표지가 있고
+     본문은 표지와 막(.book-veil)이 가린다 — 여기서 또 덮으면 표지까지 묻힌다
+     (실제로 묻혔다: 표지가 거의 검게 보였다). */
   pointer-events: none;
   transition:
     opacity 800ms cubic-bezier(0.22, 0.61, 0.36, 1),
@@ -455,5 +1158,98 @@ body {
   50% {
     opacity: 1;
     transform: translate3d(0, 4px, 0);
+  }
+}
+
+/* shadcn 이 만들어 둔 토큰 다리. 여기서 정의한 이름이 Tailwind 유틸리티가 된다.
+   shadcn init 은 여기에 --font-sans: 'Geist Variable' 을 넣는데, 그러면 위 @theme 의
+   Pretendard 를 덮어써서 본문 한글이 Geist 로 떨어진다(한글 자소가 없어 깨진다).
+   그 줄은 지웠다 — 이 사이트의 본문 서체는 위 @theme 하나가 정한다. */
+@theme inline {
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  /* :root 와 같은 이유 — 어두운 쪽에서도 등불색을 유지한다. */
+  --accent: #e0a75c;
+  --accent-foreground: #16171a;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }

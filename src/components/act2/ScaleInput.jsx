@@ -1,4 +1,6 @@
+import { motion } from 'motion/react';
 import { scaleLabels } from '../../data/questions';
+import { softSpring } from '../../lib/anim';
 
 // 가운데가 작고 양끝이 큰 전형적인 리커트 배치 — 방향이 눈에 먼저 들어온다
 const SIZES = ['h-8 w-8', 'h-7 w-7', 'h-6 w-6', 'h-7 w-7', 'h-8 w-8'];
@@ -30,8 +32,15 @@ export function ScaleInput({ name, value, onChange, labelledBy }) {
                 aria-label={scaleLabels.points[i]}
                 className="peer sr-only"
               />
-              <span
-                className={`${SIZES[i]} rounded-full border border-hair transition-[background-color,border-color,transform] duration-300 peer-checked:scale-110 peer-checked:border-accent peer-checked:bg-accent peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-accent`}
+              {/* 크기는 motion 이 스프링으로, 색은 그대로 peer-checked CSS 가 맡는다.
+                  색까지 가져오면 --color-accent 를 JS 쪽에 한 벌 더 적어 두게 되는데,
+                  그러면 토큰을 고칠 자리가 둘로 갈라진다.
+                  peer-checked:scale-110 은 뺐다 — motion 이 transform 을 인라인으로
+                  쓰므로 둘이 같은 속성을 두고 다툰다. */}
+              <motion.span
+                animate={{ scale: checked ? 1.12 : 1 }}
+                transition={softSpring}
+                className={`${SIZES[i]} rounded-full border border-hair transition-[background-color,border-color] duration-300 peer-checked:border-accent peer-checked:bg-accent peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-accent`}
               />
             </label>
           );

@@ -5,6 +5,7 @@ import { usePersistentState } from '../../hooks/usePersistentState';
 import { ScaleInput } from './ScaleInput';
 import { ResultFlipCard } from './ResultFlipCard';
 import { Button } from '../ui/Button';
+import { ProgressLine } from '../ui/ProgressLine';
 import { act2 } from '../../data/content';
 
 const STORAGE_KEY = 'tangbu.quiz.v1';
@@ -47,17 +48,7 @@ export function Quiz() {
     <div className="mt-10">
       {/* 진행 표시 */}
       <div className="sticky top-0 z-10 -mx-6 mb-8 bg-[var(--paper)] px-6 py-3 sm:-mx-10 sm:px-10">
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-[color-mix(in_srgb,var(--fg)_14%,transparent)]">
-            <div
-              className="h-px bg-accent transition-[width] duration-500 ease-out"
-              style={{ width: `${(done / questions.length) * 100}%` }}
-            />
-          </div>
-          <span className="text-faint text-xs tabular-nums">
-            {done} / {questions.length}
-          </span>
-        </div>
+        <ProgressLine value={done} max={questions.length} label={`${done} / ${questions.length}`} />
       </div>
 
       <ol className="space-y-10">
@@ -99,6 +90,12 @@ export function Quiz() {
       </div>
 
       <p className="text-faint kr mt-6 text-xs leading-relaxed">{act2.quizIntro.desc}</p>
+
+      {/* 결과 보기 아래 여백.
+          누르기 전에 답을 한 번 훑어보게 되는 자리인데, 버튼 바로 밑에서
+          다음 내용이 올라오면 화면이 빡빡하다. 담벼락(32dvh)만큼은 필요 없고
+          한 번 숨 쉴 만큼 둔다. */}
+      <div aria-hidden="true" className="h-[22dvh]" />
     </div>
   );
 }

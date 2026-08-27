@@ -3,6 +3,7 @@ import { Reveal } from '../layout/Reveal';
 import { Prose } from '../ui/Prose';
 import { CardGrid } from '../ui/CardGrid';
 import { Quote } from '../ui/Quote';
+import { SplitText } from '../ui/SplitText';
 import { act1, site } from '../../data/content';
 
 export function Act1Leaving() {
@@ -14,8 +15,16 @@ export function Act1Leaving() {
         </p>
       </Reveal>
 
-      <Reveal delay={120}>
-        <h1 className="serif text-ink text-5xl font-bold sm:text-7xl">{site.title}</h1>
+      {/* 제목만 글자 단위로 든다. Reveal 로 함께 감싸면 덩어리 페이드와 글자 등장이
+          겹쳐 둘 다 흐려지므로, 제목을 밖으로 빼고 아래 줄을 뒤따르게 했다. */}
+      <SplitText
+        as="h1"
+        text={site.title}
+        delay={120}
+        className="serif text-ink block text-5xl font-bold sm:text-7xl"
+      />
+
+      <Reveal delay={520}>
         <p className="text-soft mt-4 text-sm tracking-wide sm:text-base">
           {site.author} · {site.originalTitle}
         </p>

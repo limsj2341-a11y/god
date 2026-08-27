@@ -1,5 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useViewportFrame } from '../../hooks/useViewportFrame';
+import { TURN_PHASE, TURN_READ_START, TURN_RUNWAY } from '../../lib/anim';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import {
   ALLOW_BLUR,
@@ -28,8 +29,32 @@ import {
  *    "퍼져나가는" 소멸과 왼쪽으로 빠지는 슬라이드는 방향이 어긋나기 때문이다.
  */
 
-const ENTER_WINDOW = 0.35; // 뷰포트 높이 대비
-const EXIT_WINDOW = 0.35;
+const EXIT_WINDOW = 0.35; // 뷰포트 높이 대비
+
+/**
+ * 섹션 상단 여백을 아직 못 쟀을 때 쓰는 값 (py-32 = 8rem).
+ * 첫 글줄은 페이지 윗변보다 이만큼 아래에 있다 — 넘김 램프의 기준점이다.
+ */
+const FALLBACK_PAD = 128;
+
+/**
+ * 3막의 글이 끝난 뒤 소멸이 시작되기까지 머무는 구간 (뷰포트 높이 대비).
+ * 3막의 끝은 담벼락이라 글을 쓸 시간이 필요하다.
+ *
+ * 0.6 은 너무 길었다 — 아무 일도 안 일어나는 구간을 한 화면 넘게 굴려야 했다.
+ * 0.28 도 여전히 길었다. 멈췄다가 갑자기 다 일어나니 뚝 끊겼다 몰아치는 것처럼
+ * 보였다. 멈춤을 줄인 만큼 소멸(DISSOLVE_SPAN)에 넘겨서, 서 있는 시간 대신
+ * 움직이는 시간을 늘렸다. 전체 길이는 거의 그대로다.
+ */
+const DISSOLVE_HOLD = 0.14;
+
+/**
+ * 소멸이 도는 거리 (뷰포트 높이 대비).
+ *
+ * 좁히면 빨리 지나가지만 그만큼 급해 보인다. 멈춰 있던 구간을 줄여
+ * 여기에 돌려주었으므로, 전체 길이는 그대로 두면서 움직임만 완만해진다.
+ */
+const DISSOLVE_SPAN = 1.0;
 
 const ENTER_X = 6; // %
 const EXIT_X = -8; // %
@@ -55,12 +80,102 @@ function writeVar(cache, name, value) {
 export function Page({ index, dissolve = false, className = '', children }) {
   const pageRef = useRef(null);
   const contentRef = useRef(null);
+  const innerRef = useRef(null);
   const lightRef = useRef(null);
+
+  /* 이 막의 글이 실제로 차지하는 높이. 스크롤 길이를 여기에 맞춰 준다. */
+  const innerHRef = useRef(0);
 
   const pageCache = useRef({});
   const contentCache = useRef({});
+  const innerCache = useRef({});
   const lightCache = useRef({});
   const rootCache = useRef({});
+
+  // 첫 글줄까지의 거리(섹션 상단 여백). 넘김 램프의 기준점이라 실제 값을 쓴다.
+  // 매 프레임 getComputedStyle 을 부르면 스타일 재계산이 강제되므로 한 번만 재고,
+  // sm 경계(py-24 ↔ py-32)를 넘나들 수 있으니 창 크기가 바뀔 때만 다시 잰다.
+  const padRef = useRef(FALLBACK_PAD);
+
+  useEffect(() => {
+    const measurePad = () => {
+      const section = contentRef.current?.querySelector('section');
+      if (!section) return;
+      const pt = Number.parseFloat(getComputedStyle(section).paddingTop);
+      if (Number.isFinite(pt) && pt > 0) padRef.current = pt;
+    };
+
+    measurePad();
+    window.addEventListener('resize', measurePad);
+    return () => window.removeEventListener('resize', measurePad);
+  }, []);
+
+  /*
+   * 이 막이 화면에 붙어 있는 동안 쓸 스크롤 길이를 만든다.
+   *
+   * .page-content 를 sticky 로 붙이면 그 안의 글이 흐름에서 빠지므로, 바깥
+   * .page 의 높이가 한 화면으로 쪼그라든다. 그러면 붙어 있을 구간 자체가 없다.
+   * 글의 실제 높이를 재서 .page 에 그대로 실어 줘야 그만큼 붙어 있을 수 있다.
+   *
+   * 매 프레임 재지 않는다 — 레이아웃 읽기는 비싸고, 값이 바뀌는 건 창 크기나
+   * 웹폰트가 바뀔 때뿐이다.
+   */
+  useEffect(() => {
+    const measureHeight = () => {
+      const inner = innerRef.current;
+      const page = pageRef.current;
+      if (!inner || !page) return;
+
+      const h = inner.scrollHeight;
+      if (!h) return;
+
+      innerHRef.current = h;
+
+      // 붙어 있어야 하는 스크롤 길이 = 들어오는 구간 + 글 + 나가는 구간.
+      //
+      // 처음에는 나가는 구간만 더했다가, sticky 가 넘김이 끝나기 한 구간 전에
+      // 풀려 버렸다. 그 사이 앞 막과 뒷 막이 둘 다 또렷하게 남았다
+      // (실측: y=5858~6666 에서 2막·3막이 동시에 opacity 1.00).
+      // 들어오는 구간도 자기 높이에 들어 있어야 그만큼 붙어 있을 수 있다.
+      const runway = window.innerHeight * TURN_RUNWAY;
+      const runIn = index === 0 ? 0 : runway;
+      // 소멸 페이지(3막)는 넘길 다음 장이 없다 — 책이 빛으로 흩어질 뿐이다.
+      // 그래서 넘김 구간(runway)은 필요 없지만, 아예 0 으로 두면 글이 끝나는
+      // 그 자리에서 곧바로 소멸이 시작된다. 3막의 끝은 담벼락 — 글을 쓰는
+      // 자리다. 소멸이 거기서 시작되면 쓰는 도중에 배경이 밝아지고 입력칸이
+      // 녹는다(실측: 담벼락이 화면 한복판 top=239 인데 배경 밝기가 49→85,
+      // top=0 에서는 이미 150 이었다).
+      //
+      // 그래서 넘김 대신 "머무는 구간"을 준다. 여기서는 아무 일도 일어나지
+      // 않고 담벼락이 화면에 그대로 있다. 소멸은 이 구간을 지나야 시작된다.
+      const runOut = dissolve ? window.innerHeight * DISSOLVE_HOLD : runway;
+      // 글이 다시 움직이기 시작하는 지점까지만 넘김 구간을 셈에 넣는다.
+      // 구간 전체를 넣으면 넘김이 끝난 뒤에도 굴릴 거리가 남아 텀이 생긴다.
+      page.style.height = `${runIn * TURN_READ_START + h + runOut}px`;
+
+      // 첫 막이 아니면, 앞 막의 넘김 구간과 같은 자리에 겹쳐 놓는다.
+      // 이 막이 문서에서 뒤에 있으므로 앞 막 위에 그려진다 — 넘김이 끝나면
+      // 이 막이 앞 막을 덮어 가린다.
+      //
+      // 당기는 양이 runway 뿐이면 한 화면만큼 모자란다.
+      // 앞 막의 글이 다 밀려 올라간 지점은 (글높이 - 한 화면)이지 글높이가 아니다.
+      // 그 차이(vh)를 빼먹었더니 넘김 구간이 앞 막이 떨어져 나간 뒤에 시작해서,
+      // 구간 내내 아무 막도 안 보인 채 종이만 넘어갔다(실측: 보이는 막 0개).
+      page.style.marginTop = index === 0 ? '' : `${-(runway + window.innerHeight)}px`;
+    };
+
+    measureHeight();
+
+    const ro = new ResizeObserver(measureHeight);
+    if (innerRef.current) ro.observe(innerRef.current);
+    window.addEventListener('resize', measureHeight);
+    if (document.fonts?.ready) document.fonts.ready.then(measureHeight).catch(() => {});
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measureHeight);
+    };
+  }, [dissolve, index]);
 
   const reduced = usePrefersReducedMotion();
 
@@ -85,8 +200,14 @@ export function Page({ index, dissolve = false, className = '', children }) {
         write(content, cc, 'maskImage', '');
         write(content, cc, 'WebkitMaskImage', '');
 
+        // 붙여 두지 않는다 — 모션 축소에서는 글이 평범하게 흘러야 한다.
+        if (innerRef.current) {
+          write(innerRef.current, innerCache.current, 'transform', '');
+          write(innerRef.current, innerCache.current, 'willChange', 'auto');
+        }
+
         if (dissolve) {
-          const d = clamp01((vh - rect.bottom) / vh);
+          const d = clamp01((vh - rect.bottom) / (vh * DISSOLVE_SPAN));
           const past = d > 0.5;
           write(content, cc, 'opacity', past ? '0' : '1');
           if (lightRef.current) write(lightRef.current, lc, 'opacity', '0');
@@ -98,26 +219,88 @@ export function Page({ index, dissolve = false, className = '', children }) {
       }
 
       /* ── A. 넘김 ── */
-      const enter = easeTurn(clamp01((vh - rect.top) / (vh * ENTER_WINDOW)));
-      const exitRaw = clamp01((vh * EXIT_WINDOW - rect.bottom) / (vh * EXIT_WINDOW));
-      const exit = dissolve ? 0 : easeTurn(exitRaw);
+      //
+      // 램프를 페이지 윗변이 아니라 "첫 글줄"에 건다.
+      //
+      // 전에는 윗변이 화면 아래에서 35vh 올라오는 동안 슬라이드를 다 끝냈다.
+      // 그런데 막은 min-h-dvh 에 py-32 라 그 35vh 구간에는 글이 한 줄도 없다.
+      // 글이 보이기 시작할 무렵에는 enter 가 이미 1이어서 넘김이 끝나 있었다 —
+      // 계산은 매 프레임 돌지만 화면에서는 아무 일도 일어나지 않았다.
+      // (1440x900 기준 실측: 글 첫 줄이 화면에 들어올 때 x 는 이미 0.0%)
+      //
+      //   시작 — 첫 글줄이 화면 아래 끝에 닿는 순간      (rect.top = vh - pad)
+      //   끝  — 앞 페이지가 퇴장을 시작하는 지점         (rect.top = vh * EXIT_WINDOW)
+      //
+      // 끝을 이보다 늦추면 앞 페이지가 나가는 동안 이 페이지가 들어오게 된다.
+      // 두 장이 동시에 반투명해지면서 세로 이음매와 잘린 글자가 드러나는데,
+      // ActNav 주석에 적힌 그 증상이 스크롤만 해도 나오게 된다. 여기서 끊는다.
+      // 막이 화면에 붙어 있는 동안의 스크롤을 세 구간으로 나눈다.
+      //
+      //   1. 들어옴 — 앞 막의 넘김 구간과 겹친 자리. 종이가 넘어가는 중이라
+      //               이 막은 아직 안 보인다. 절반이 지나야 떠오른다.
+      //   2. 읽기   — 글이 위로 밀린다.
+      //   3. 넘김   — 글은 멈추고 종이만 넘어간다. 이 막은 물러난다.
+      //
+      // 전에는 1과 2가 한꺼번에 일어나서 "종이가 넘어가는 것"과 "뒷 막의 글이
+      // 나타나는 것"이 동시에 보였다. 구간을 갈라야 넘기고 나서 읽게 된다.
+      const runway = vh * TURN_RUNWAY;
+      const runIn = index === 0 ? 0 : runway; // 첫 막 앞에는 넘길 앞 장이 없다
+      const travel = Math.max(innerHRef.current - vh, 0);
+      const scrolled = -rect.top;
 
-      const x = ENTER_X * (1 - enter) + EXIT_X * exit;
-      const pageOpacity = enter * (1 - exit);
+      const enterP = runIn > 0 ? clamp01(scrolled / runIn) : 1;
+      // 종이가 다 넘어간 뒤에야 떠오른다.
+      const appear = runIn > 0 ? stage(enterP, ...TURN_PHASE.fadeIn) : 1;
 
-      const moving = Math.abs(x) > 0.02 || pageOpacity < 0.999;
-      write(page, pc, 'willChange', moving ? 'transform, opacity' : 'auto');
-      write(page, pc, 'transform', moving ? `translate3d(${x.toFixed(2)}%,0,0)` : '');
-      write(page, pc, 'opacity', moving ? pageOpacity.toFixed(3) : '');
+      // 넘김 구간이 다 지나기를 기다리지 않는다. 글이 다 떠오른 지점부터
+      // 곧바로 밀린다 — 그래야 넘김과 읽기 사이가 붙는다.
+      const readBase = runIn * TURN_READ_START;
+      const readP = travel > 0 ? clamp01((scrolled - readBase) / travel) : 0;
+
+      const outP = clamp01((scrolled - readBase - travel) / runway);
+      // 종이가 넘어가기 "전에" 걷힌다. 반대로 하면 종이가 또렷한 글 위를 지나가
+      // 글자가 종이에 끌려가는 것처럼 보인다.
+      //
+      // 소멸 페이지(3막)는 예외다. 저 아래 소멸 단계가 직접 걷어 내므로
+      // 여기서 또 지우면 빛으로 흩어지는 장면이 통째로 사라진다.
+      const recede = dissolve ? 1 : 1 - easeSoft(stage(outP, ...TURN_PHASE.fadeOut));
+
+      // 아래 소멸 단계에도 inner 라는 이름이 있다(마스크 반경). 겹치지 않게 둔다.
+      const innerEl = innerRef.current;
+      if (innerEl) {
+        const ic = innerCache.current;
+        const shift = -travel * readP;
+        write(innerEl, ic, 'transform', `translate3d(0,${shift.toFixed(1)}px,0)`);
+
+        write(innerEl, ic, 'willChange', readP > 0 && readP < 1 ? 'transform' : 'auto');
+      }
+
+      // 막이 통째로 뜨고 지는 것은 여기서, 그 안의 블록이 하나씩 올라오는 것은
+      // Reveal 이 맡는다(components/layout/Reveal.jsx).
+      //
+      // 한때 가림막(mask)을 씌워 위에서 아래로 걷었는데, 그건 "이미 다 적힌
+      // 페이지를 덮개만 치우는" 것으로 보였다. 글은 블록마다 제 차례에
+      // 올라와야 페이지가 쓰이는 것처럼 읽힌다.
+      const pageOpacity = appear * recede;
+      const fading = pageOpacity < 0.999;
+      write(page, pc, 'transform', '');
+      write(page, pc, 'opacity', fading ? pageOpacity.toFixed(3) : '');
+      write(page, pc, 'willChange', fading ? 'opacity' : 'auto');
 
       if (!dissolve) return;
 
       /* ── B. 소멸 (3막 → 4막) ── */
-      const d = clamp01((vh - rect.bottom) / vh);
+      const d = clamp01((vh - rect.bottom) / (vh * DISSOLVE_SPAN));
 
-      const s1 = easeSoft(stage(d, 0, 0.4)); // 스밈
-      const s2 = easeSoft(stage(d, 0.4, 0.75)); // 용해
-      const s3 = easeSoft(stage(d, 0.75, 1)); // 흘러내림
+      // 세 단계를 서로 겹쳐 둔다.
+      //
+      // 예전에는 0~0.4 / 0.4~0.75 / 0.75~1 로 딱딱 끊어 놓았다. 한 단계가
+      // 끝나야 다음이 시작되니 이음매마다 속도가 꺾였고, 특히 용해 구간이
+      // 좁아서 3막이 뚝 하고 사라졌다(실측: 담벼락 짙기가 1.00 에서 0.08 로
+      // 한 걸음에 떨어졌다). 겹쳐 두면 끊기는 자리가 없어진다.
+      const s1 = easeSoft(stage(d, 0, 0.45)); // 스밈
+      const s2 = easeSoft(stage(d, 0.28, 0.88)); // 용해 — 넉넉하게 끈다
+      const s3 = easeSoft(stage(d, 0.72, 1)); // 흘러내림
 
       // 연출을 걸 자리는 "지금 화면에 남아 있는 페이지 영역"이다.
       // 페이지 하단에 고정하면 스크롤이 올라갈수록 그라데이션 중심이 화면
@@ -133,9 +316,24 @@ export function Page({ index, dissolve = false, className = '', children }) {
       const outer = inner + 25;
 
       if (SUPPORTS_MASK && d > 0.001) {
+        // 마스크가 걸리는 곳은 .page-content 다. 그 상자는 sticky 로 붙어 있어
+        // 높이가 화면 한 장(806px)인데, 위에서 잰 밴드는 .page 기준이라
+        // 좌표가 2,000px 넘게 어긋난다. 그대로 쓰면 마스크 이미지가 상자 밖에
+        // 놓이고, mask-repeat 이 no-repeat 이라 바깥은 전부 투명 —
+        // 소멸이 시작되는 순간 내용이 통째로 지워졌다(실측: maskPosition
+        // "50% 2328px" 인데 상자 높이는 806px).
+        //
+        // .page-light 는 .page 안에 놓이므로 위의 밴드를 그대로 쓴다.
+        // 마스크만 자기 상자 기준으로 다시 잰다.
+        const crect = content.getBoundingClientRect();
+        const maskTopVp = Math.max(0, crect.top);
+        const maskBottomVp = Math.min(vh, crect.bottom);
+        const maskH = Math.max(1, maskBottomVp - maskTopVp);
+        const maskTopEl = maskTopVp - crect.top;
+
         const mask = `radial-gradient(115% 85% at 50% 45%, #000 ${inner.toFixed(1)}%, transparent ${outer.toFixed(1)}%)`;
-        const size = `100% ${bandH.toFixed(0)}px`;
-        const pos = `50% ${bandTopEl.toFixed(0)}px`;
+        const size = `100% ${maskH.toFixed(0)}px`;
+        const pos = `50% ${maskTopEl.toFixed(0)}px`;
         write(content, cc, 'maskImage', mask);
         write(content, cc, 'WebkitMaskImage', mask);
         write(content, cc, 'maskSize', size);
@@ -234,7 +432,11 @@ export function Page({ index, dissolve = false, className = '', children }) {
       // 4막이 도착하는 정도. 4막은 자기 글자색(어두움)을 이미 쓰고 있고,
       // 이 값으로 서서히 떠오른다. 처음에는 어두운 바탕에 어두운 글자라
       // 보이지 않는데, 그게 맞다 — 아직 도착하지 않은 것이다.
-      writeVar(rc, '--act4-in', easeSoft(stage(d, 0.3, 0.9)).toFixed(3));
+      // 3막이 걷히는 것과 4막이 도착하는 것 사이가 비면 허전하다.
+      // 겹쳐서 받는다 — 흩어지는 빛 위로 4막이 떠오르는 편이 이어져 보인다.
+      // 다만 너무 빨리 다 떠오르면 3막이 아직 녹는 중에 4막이 완성돼 있어
+      // 두 장면이 겹쳐 보인다. 용해와 나란히 가도록 끝을 늦춘다.
+      writeVar(rc, '--act4-in', easeSoft(stage(d, 0.3, 0.95)).toFixed(3));
     },
     [reduced, dissolve],
   );
@@ -243,11 +445,15 @@ export function Page({ index, dissolve = false, className = '', children }) {
 
   return (
     <div ref={pageRef} data-page={index} className={`page ${className}`}>
+      {/* 이 막이 화면에 붙어 있는 동안(sticky) 스크롤은 안쪽 글을 밀어 올린다.
+          그래서 한 번에 한 막만 화면에 있고, 스크롤은 그 막의 진행을 재생한다.
+          animejs.com 이 쓰는 pin + scrub 과 같은 구조다. */}
       <div ref={contentRef} className="page-content">
-        {children}
-        {/* 제본 쪽 접힘과 바깥쪽 종이 끝 */}
-        <span aria-hidden="true" className="page-gutter" />
-        <span aria-hidden="true" className="page-edge" />
+        <div ref={innerRef} className="page-inner">
+          {children}
+        </div>
+        {/* 제본 접힘과 종이 끝은 고정된 책(BookStage)이 그린다.
+            여기서도 그리면 같은 자리에 두 겹이 앉아 이중 테두리가 생긴다. */}
       </div>
 
       {dissolve ? <span ref={lightRef} aria-hidden="true" className="page-light" /> : null}

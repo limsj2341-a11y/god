@@ -3,6 +3,8 @@ import { practiceDays } from '../../data/practice';
 import { usePersistentState } from '../../hooks/usePersistentState';
 import { downloadPracticeCard } from '../../lib/cardImage';
 import { Button } from '../ui/Button';
+import { CheckBox } from '../ui/CheckBox';
+import { ProgressLine } from '../ui/ProgressLine';
 import { FeastMoment } from './FeastMoment';
 import { act4 } from '../../data/content';
 
@@ -46,17 +48,11 @@ export function PracticeCard() {
   return (
     <div className="mt-10">
       {/* 진행 */}
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-[color-mix(in_srgb,var(--fg)_14%,transparent)]">
-          <div
-            className="h-px bg-accent transition-[width] duration-700 ease-out"
-            style={{ width: `${(doneCount / practiceDays.length) * 100}%` }}
-          />
-        </div>
-        <span className="text-faint text-xs tabular-nums">
-          {act4.practice.progress(doneCount, practiceDays.length)}
-        </span>
-      </div>
+      <ProgressLine
+        value={doneCount}
+        max={practiceDays.length}
+        label={act4.practice.progress(doneCount, practiceDays.length)}
+      />
 
       <ul className="mt-6">
         {practiceDays.map((day, i) => {
@@ -70,20 +66,7 @@ export function PracticeCard() {
                   onChange={() => toggle(i)}
                   className="peer sr-only"
                 />
-                <span
-                  aria-hidden="true"
-                  className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-hair transition-[background-color,border-color] duration-300 peer-checked:border-accent peer-checked:bg-accent"
-                >
-                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                    <path
-                      d="M2.5 7.5l3 3 6-7"
-                      stroke={isOn ? '#16171A' : 'transparent'}
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
+                <CheckBox on={isOn} />
 
                 <span className="flex-1">
                   <span className="flex items-baseline gap-2">

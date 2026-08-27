@@ -56,7 +56,8 @@ export function ScrollIntro() {
     <div
       aria-hidden={leaving ? 'true' : undefined}
       data-leaving={leaving ? 'true' : 'false'}
-      className="scroll-intro fixed inset-0 z-30 flex flex-col items-center justify-center gap-7 px-8 text-center"
+      // 책 아래에 붙인다. 가운데에 두면 표지 제목과 정확히 겹친다(실제로 겹쳤다).
+      className="scroll-intro fixed inset-0 z-30 flex flex-col items-center justify-end gap-5 px-8 pb-10 text-center"
     >
       <p className="serif kr text-ink text-lg leading-relaxed sm:text-xl">{intro.line}</p>
       <span aria-hidden="true" className="scroll-intro-cue" />

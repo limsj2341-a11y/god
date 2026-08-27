@@ -127,6 +127,16 @@ export function Act3ElderBrother() {
           <WallForm onSubmit={handleSubmit} busy={busy} />
           {/* 내가 방금 남긴 글은 첫 쪽 맨 위에 있으므로 그때만 첫 쪽으로 돌아온다 */}
           <WallList entries={entries} jumpToFirst={justAdded > 0} />
+
+          {/* 담벼락 뒤 여백.
+              글을 쓰는 자리인데 바로 아래에서 다음 막이 밀고 올라오면, 입력칸이
+              화면 위쪽으로 떠밀려 쓰는 동안 손이 급해진다.
+
+              한 화면(100dvh)보다 작아야 한다. 처음에 70dvh 를 줬더니 막의
+              마지막 화면이 통째로 이 빈칸이 되어, 글이 한 줄도 없는 화면이
+              나왔다(실측: y=8484 에서 보이는 글줄 0). 32dvh 면 담벼락이
+              화면에 남은 채로 아래에 숨 쉴 자리가 생긴다. */}
+          <div aria-hidden="true" className="h-[32dvh]" />
         </Reveal>
       </div>
     </Section>

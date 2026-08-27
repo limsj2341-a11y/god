@@ -281,10 +281,12 @@ export const act4 = {
 
 export const nav = {
   label: '막 이동',
+  /** 막이 아니라 책의 겉이다. 누르면 덮인 표지로 돌아간다. */
+  cover: { label: '표지' },
   items: [
-    { id: 'act1', label: '떠남' },
-    { id: 'act2', label: '두 아들' },
-    { id: 'act3', label: '진짜 맏형' },
-    { id: 'act4', label: '잔치' },
+    { id: 'act1', label: '1막 떠남' },
+    { id: 'act2', label: '2막 두 아들' },
+    { id: 'act3', label: '3막 진짜 맏형' },
+    { id: 'act4', label: '4막 잔치' },
   ],
 };
