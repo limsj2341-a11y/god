@@ -81,6 +81,7 @@ export function Page({ index, dissolve = false, className = '', children }) {
   const pageRef = useRef(null);
   const contentRef = useRef(null);
   const innerRef = useRef(null);
+  const sheetRef = useRef(null);
   const lightRef = useRef(null);
 
   /* 이 막의 글이 실제로 차지하는 높이. 스크롤 길이를 여기에 맞춰 준다. */
@@ -89,6 +90,7 @@ export function Page({ index, dissolve = false, className = '', children }) {
   const pageCache = useRef({});
   const contentCache = useRef({});
   const innerCache = useRef({});
+  const sheetCache = useRef({});
   const lightCache = useRef({});
   const rootCache = useRef({});
 
@@ -206,6 +208,16 @@ export function Page({ index, dissolve = false, className = '', children }) {
           write(innerRef.current, innerCache.current, 'willChange', 'auto');
         }
 
+        // 지면도 젖히지 않는다. 넘김은 모션 축소에서 생략하기로 한 연출이라
+        // .book-leaf 도 display:none 이다 — 지면만 돌면 짝이 맞지 않는다.
+        if (sheetRef.current) {
+          const sc = sheetCache.current;
+          write(sheetRef.current, sc, 'transform', '');
+          write(sheetRef.current, sc, 'backgroundColor', '');
+          write(sheetRef.current, sc, 'boxShadow', '');
+          write(sheetRef.current, sc, 'willChange', 'auto');
+        }
+
         if (dissolve) {
           const d = clamp01((vh - rect.bottom) / (vh * DISSOLVE_SPAN));
           const past = d > 0.5;
@@ -258,12 +270,45 @@ export function Page({ index, dissolve = false, className = '', children }) {
       const readP = travel > 0 ? clamp01((scrolled - readBase) / travel) : 0;
 
       const outP = clamp01((scrolled - readBase - travel) / runway);
-      // 종이가 넘어가기 "전에" 걷힌다. 반대로 하면 종이가 또렷한 글 위를 지나가
-      // 글자가 종이에 끌려가는 것처럼 보인다.
-      //
-      // 소멸 페이지(3막)는 예외다. 저 아래 소멸 단계가 직접 걷어 내므로
-      // 여기서 또 지우면 빛으로 흩어지는 장면이 통째로 사라진다.
-      const recede = dissolve ? 1 : 1 - easeSoft(stage(outP, ...TURN_PHASE.fadeOut));
+
+      /*
+       * 읽던 지면이 그대로 젖혀진다.
+       *
+       * 전에는 글을 먼저 걷고 빈 종이(.book-leaf)만 넘겼다. 그러면 방금 읽던
+       * 글이 사라진 뒤에 백지가 도는 것이라, 넘기는 것이 아니라 지우고 나서
+       * 넘기는 것으로 보였다. 이제 이 지면이 낱장의 앞면이다 — 글을 실은 채
+       * 제본선을 축으로 돈다.
+       *
+       * 90도를 넘어가면 backface-visibility 가 알아서 감춘다. 그 뒤는
+       * .book-leaf 의 뒷면이 받는다. 그래서 여기서는 따로 지우지 않는다.
+       *
+       * BookStage 가 --turn 에 쓰는 것과 같은 식이어야 종이와 글이 어긋나지
+       * 않는다. 같은 구간(TURN_PHASE.paper)에 같은 곡선(easeTurn)을 쓴다.
+       */
+      const sheetTurn = dissolve ? 0 : easeTurn(stage(outP, ...TURN_PHASE.paper));
+
+      const sheetEl = sheetRef.current;
+      if (sheetEl) {
+        const sc = sheetCache.current;
+        const turning = sheetTurn > 0.0001;
+        write(
+          sheetEl,
+          sc,
+          'transform',
+          turning ? `rotateY(${(sheetTurn * -180).toFixed(2)}deg)` : '',
+        );
+        // 들린 종이는 지면에서 떨어져 나온 한 장이다. 돌기 시작할 때만
+        // 종이 색과 그림자를 입힌다 — 평소에 칠해 두면 고정된 책(.book-page)의
+        // 제본 그늘과 종이 끝이 그 아래에 묻힌다.
+        write(sheetEl, sc, 'backgroundColor', turning ? 'var(--paper)' : '');
+        write(sheetEl, sc, 'boxShadow', turning ? '18px 0 48px rgb(0 0 0 / 0.55)' : '');
+        write(sheetEl, sc, 'willChange', turning && sheetTurn < 1 ? 'transform' : 'auto');
+      }
+
+      // 소멸 페이지(3막)는 넘길 다음 장이 없다. 저 아래 소멸 단계가 직접
+      // 걷어 내므로 여기서 또 지우면 빛으로 흩어지는 장면이 통째로 사라진다.
+      // 넘기는 막은 이제 젖혀지면서 뒷면을 보이므로 따로 걷지 않는다.
+      const recede = 1;
 
       // 아래 소멸 단계에도 inner 라는 이름이 있다(마스크 반경). 겹치지 않게 둔다.
       const innerEl = innerRef.current;
@@ -449,8 +494,15 @@ export function Page({ index, dissolve = false, className = '', children }) {
           그래서 한 번에 한 막만 화면에 있고, 스크롤은 그 막의 진행을 재생한다.
           animejs.com 이 쓰는 pin + scrub 과 같은 구조다. */}
       <div ref={contentRef} className="page-content">
-        <div ref={innerRef} className="page-inner">
-          {children}
+        {/* 넘어가는 낱장 그 자체. 읽던 지면이 글을 실은 채로 젖혀진다.
+            빈 종이(.book-leaf)만 넘기면 방금 읽던 글이 먼저 사라진 뒤에
+            백지가 돌아가서, 넘기는 것이 아니라 지우고 넘기는 것으로 보였다.
+            폭을 책에 맞춰 두어야 왼쪽 모서리가 제본선과 같은 자리에 온다 —
+            화면 폭으로 두면 축이 화면 왼쪽 끝이 되어 엉뚱하게 돈다. */}
+        <div ref={sheetRef} className="page-sheet">
+          <div ref={innerRef} className="page-inner">
+            {children}
+          </div>
         </div>
         {/* 제본 접힘과 종이 끝은 고정된 책(BookStage)이 그린다.
             여기서도 그리면 같은 자리에 두 겹이 앉아 이중 테두리가 생긴다. */}

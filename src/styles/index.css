@@ -962,6 +962,27 @@ body {
   height: 100dvh;
   /* 화면 밖으로 나간 글은 잘라 낸다 — 책장 밖으로 글이 새어 나오면 안 된다. */
   overflow: hidden;
+  /* 안쪽 지면이 젖혀질 때 깊이가 있어야 종이가 아니라 판으로 보이지 않는다.
+     책(.book-stage)과 같은 값을 쓴다 — 같은 책의 낱장이므로 원근이 다르면
+     넘어가는 종이와 고정된 지면이 서로 다른 물체로 보인다. */
+  perspective: 2400px;
+}
+
+/* 넘어가는 낱장 그 자체 — 글을 실은 지면.
+   폭을 책에 묶어야 왼쪽 모서리가 제본선과 같은 자리에 온다. 화면 폭으로 두면
+   회전축이 화면 왼쪽 끝이 되어 책 밖에서 도는 것처럼 보인다. */
+.page-sheet {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: min(var(--book-w), 100vw);
+  margin-left: calc(min(var(--book-w), 100vw) / -2);
+  transform-origin: left center;
+  /* 90도를 넘어가면 스스로 감춘다. 그 뒤는 .book-leaf 의 뒷면이 받는다 —
+     글이 거울처럼 뒤집혀 비치는 것을 막는다. */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* 막 안의 글 상자. 스크롤한 만큼 Page 가 여기를 위로 민다.

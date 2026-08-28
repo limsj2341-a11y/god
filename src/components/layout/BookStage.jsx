@@ -315,8 +315,10 @@ export function BookStage() {
               세 마디로 나눠 휘게 해 봤는데 곡선이 아니라 각도가 다른 평면
               세 장으로 보였다. 이음매를 지워도 마찬가지였다 — CSS 3D 로는
               면을 잘게 나눌수록 다각형 티가 난다. 한 장으로 되돌렸다. */}
+          {/* 앞면은 두지 않는다. 넘어가는 낱장의 앞면은 읽던 지면(.page-sheet)이
+              맡는다 — 여기에 빈 종이를 한 장 더 세우면 그 글을 덮어 버린다.
+              90도를 넘어 지면이 backface 로 사라진 뒤 드러나는 뒷면만 남긴다. */}
           <div className="book-leaf">
-            <div className="book-leaf-face book-leaf-front" />
             <div className="book-leaf-face book-leaf-back" />
           </div>
 
