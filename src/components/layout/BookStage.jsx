@@ -380,7 +380,7 @@ export function BookStage() {
 
           {/* 책등 — 왼쪽 모서리에서 뒤로 꺾여 선다 */}
           <div className="book-spine-face">
-            <span className="serif book-spine-title">{site.title}</span>
+            <span className="book-spine-title">{site.title}</span>
           </div>
 
           {/* 책배 — 오른쪽 모서리. 종이가 쌓인 결이 보인다 */}

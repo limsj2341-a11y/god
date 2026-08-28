@@ -370,7 +370,11 @@ body {
   background:
     linear-gradient(to right, #3b2117 0%, #74432c 40%, #4a2719 100%);
   box-shadow: inset -2px 0 6px rgb(0 0 0 / 0.5);
-  opacity: var(--shelf-out);
+  /* 꺼내는 내내 불투명해야 한다. --shelf-out(1 → 0)을 그대로 쓰면 하필
+     옆면이 가장 잘 보이는 구간에서 반투명해져, 책 속으로 책장과 옆 책들이
+     비쳤다. 책이 정면을 보면 이 면들은 모로 서서 저절로 사라지므로
+     페이드는 필요 없다. 마지막 15% 에서만 걷어 얇은 잔상만 지운다. */
+  opacity: clamp(0, calc((1 - var(--book-out)) * 6.5), 1);
 }
 
 /* 책배 — 오른쪽 모서리에서 뒤로 꺾여 선다. 쌓인 종이의 결. */
@@ -395,7 +399,11 @@ body {
       #cfc6b5 2px
     );
   box-shadow: inset 0 0 10px rgb(0 0 0 / 0.35);
-  opacity: var(--shelf-out);
+  /* 꺼내는 내내 불투명해야 한다. --shelf-out(1 → 0)을 그대로 쓰면 하필
+     옆면이 가장 잘 보이는 구간에서 반투명해져, 책 속으로 책장과 옆 책들이
+     비쳤다. 책이 정면을 보면 이 면들은 모로 서서 저절로 사라지므로
+     페이드는 필요 없다. 마지막 15% 에서만 걷어 얇은 잔상만 지운다. */
+  opacity: clamp(0, calc((1 - var(--book-out)) * 6.5), 1);
 }
 
 /* 뒤표지 — 두께만큼 뒤에 선다.
@@ -412,35 +420,52 @@ body {
   -webkit-backface-visibility: hidden;
   background: linear-gradient(135deg, #3a2b1d 0%, #241a12 60%, #2e2218 100%);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 12%, transparent);
-  opacity: var(--shelf-out);
+  /* 꺼내는 내내 불투명해야 한다. --shelf-out(1 → 0)을 그대로 쓰면 하필
+     옆면이 가장 잘 보이는 구간에서 반투명해져, 책 속으로 책장과 옆 책들이
+     비쳤다. 책이 정면을 보면 이 면들은 모로 서서 저절로 사라지므로
+     페이드는 필요 없다. 마지막 15% 에서만 걷어 얇은 잔상만 지운다. */
+  opacity: clamp(0, calc((1 - var(--book-out)) * 6.5), 1);
 }
 
 .book-spine-title {
-  /* 책등 글씨는 세로로 선다. 크기는 책등 두께에 맞춘다 — 화면 폭과는 무관하다. */
+  /* 책등 글씨는 세로로 선다.
+     글씨체는 옆 책들(.shelf-title)과 같은 것을 쓴다 — 우리 책만 명조였더니
+     같은 책장에 꽂힌 책으로 보이지 않았다. 다른 점은 크기뿐이다.
+
+     크기는 책등 두께에 매인다(화면 폭과 무관). 옆 책들이 9.5px 이므로
+     이 값이면 한 뼘 크다 — 우리 책이라는 표시는 그것으로 충분하다. */
   writing-mode: vertical-rl;
-  /* 0.42 는 책등 폭(26px)의 절반도 못 채워서, 꽂혀 있는 동안 글자가 가늘고
-     작아 읽히지 않았다. 폭을 채우도록 키운다 — 다섯 글자가 책등 높이에
-     들어가는 한계가 0.55 근처다. */
-  font-size: calc(var(--book-depth) * 0.55);
-  font-weight: 600;
+  font-style: normal;
   line-height: 1;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  /* 옆 책들의 제목(.shelf-title)과 같은 정도로 읽혀야 한다. 앰버 85% 는
-     책등의 붉은 갈색 위에서 대비가 모자라 얼룩처럼 보였다 — 우리 책인데
-     이름이 가장 안 읽혔다. 크림색을 바탕에 두고 앰버는 온기로만 남긴다.
-     어두운 책등 위라 그림자도 옆 책들과 같이 깔아 준다. */
-  color: color-mix(in srgb, #f6f3ee 82%, var(--color-accent));
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.65);
-  /* 꽂혀 있을 때 이 글씨는 한 축으로만 눌린다.
-     책은 rotateY(90deg) 로 돌아서 있어 책등의 두께(Z)는 화면에서 거의 그대로
-     나오는데(실측: 26px 책등이 화면에서 27px), 높이만 --shelf-scale 만큼
-     줄어든다(900px 이 92px). 그래서 세로 글줄이 10 배로 납작해져 얼룩으로만
-     보였다(실측: "탕부 하나님" 다섯 글자가 7px). 눌린 축만 되돌린다. */
-  transform: scaleY(
-    calc(1 / (var(--shelf-scale) + (1 - var(--shelf-scale)) * var(--book-out)))
+  color: color-mix(in srgb, #f6f3ee 88%, var(--color-accent));
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+
+  /*
+   * 번짐을 없애기 위해 크게 그린 뒤 줄인다.
+   *
+   * 이 글씨는 책 안에 있어서 책의 scale 을 그대로 받는다. 꽂혀 있을 때
+   * 세로가 --shelf-scale(약 0.087) 로 눌리므로 되돌리려면 11 배 늘여야 하는데,
+   * 작게 그린 글자를 11 배 늘이면 그만큼 흐려진다 — 획이 번져 보였다.
+   *
+   * 그래서 글자를 K 배 크게 앉히고 그만큼 도로 줄인다. 화면에 나오는 크기는
+   * 같지만 원본이 K 배 촘촘해서, 늘이는 배수가 11 에서 2 아래로 떨어진다.
+   * 가로(X)는 책의 두께 방향이라 눌리지 않으므로 K 로만 나눈다.
+   */
+  --k: 6;
+  --squash: calc(var(--shelf-scale) + (1 - var(--shelf-scale)) * var(--book-out));
+  /* 두께에만 맞추면 화면에 따라 제목이 책등을 넘친다 — 두께는 26px 로 같은데
+     책등 높이는 화면마다 다르기 때문이다(실측: 제목 93px 인데 책등이 83px).
+     책등 높이를 글자 수(다섯 자 + 사이)로 나눈 값과 견주어 작은 쪽을 쓴다. */
+  --glyph: min(
+    calc(var(--book-depth) * 0.55),
+    calc(var(--book-h) * var(--squash) / 7)
   );
+  font-size: calc(var(--glyph) * var(--k));
+  transform: scaleX(calc(1 / var(--k))) scaleY(calc(1 / (var(--k) * var(--squash))));
 }
+
 
 /* 막 인디케이터는 화면 끝이 아니라 책 옆에 선다.
    책이 화면보다 좁아지면서 레일만 멀찍이 남아 무엇에 붙은 표시인지
