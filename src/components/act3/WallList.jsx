@@ -97,7 +97,11 @@ export function WallList({ entries, jumpToFirst = false }) {
               aria-hidden="true"
               className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent/70"
             />
-            <p className="text-ink kr flex-1 text-base leading-relaxed">{entry.text}</p>
+            {/* min-w-0 이 없으면 flex 칸이 min-content 아래로 줄지 않는다.
+                kr 은 word-break: keep-all 이라 한글 한 덩어리의 min-content 가
+                문장 전체 길이다 — 띄어쓰기 없이 길게 쓴 글이 그대로 밖으로
+                삐져나갔다(실측 961px > 600px). */}
+            <p className="text-ink kr min-w-0 flex-1 text-base leading-relaxed">{entry.text}</p>
             <time
               dateTime={entry.createdAt}
               className="text-faint mt-1 shrink-0 text-[11px] tabular-nums"

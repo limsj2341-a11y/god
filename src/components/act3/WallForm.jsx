@@ -39,7 +39,7 @@ export function WallForm({ onSubmit, busy }) {
           maxLength={MAX_LENGTH}
           placeholder={act3.wall.placeholder}
           autoComplete="off"
-          className="text-ink placeholder:text-faint min-h-11 flex-1 bg-transparent px-2 text-base outline-none"
+          className="text-ink placeholder:text-faint min-h-11 min-w-0 flex-1 bg-transparent px-2 text-base outline-none"
         />
         <div className="flex items-center justify-between gap-3 sm:justify-end">
           {/* 아직 아무것도 안 썼을 때 숫자만 떠 있으면 무슨 뜻인지 알 수 없다 */}

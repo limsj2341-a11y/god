@@ -68,7 +68,7 @@ export function PracticeCard() {
                 />
                 <CheckBox on={isOn} />
 
-                <span className="flex-1">
+                <span className="min-w-0 flex-1">
                   <span className="flex items-baseline gap-2">
                     <span
                       className={`text-xs tracking-wide transition-colors duration-300 ${

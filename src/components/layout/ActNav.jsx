@@ -93,7 +93,12 @@ export function ActNav({ active }) {
       aria-label={nav.label}
       className="act-rail fixed top-1/2 z-40 hidden -translate-y-1/2 sm:block"
     >
-      <ul className="flex flex-col items-end gap-5">
+      {/* 간격을 버튼 바깥(gap)이 아니라 버튼 안(min-h-11)에 둔다.
+          점만 있는 버튼은 26x18 이라 손가락으로 누르기에 작았다(권장 44x44).
+          gap 으로 벌리면 사이가 빈 채로 남아 누를 수 있는 넓이는 그대로다.
+          높이를 44 로 주고 gap 을 0 으로 돌리면, 누를 수 있는 칸이 서로 맞닿아
+          빈틈이 없어지면서 이웃과 겹치지도 않는다. */}
+      <ul className="flex flex-col items-end gap-0">
         {[{ id: null, label: nav.cover.label }, ...nav.items].map((item, i) => {
           // 0 번은 표지, 1 번부터가 막이다.
           const isActive = atCover ? i === 0 : i === active + 1;
@@ -103,7 +108,7 @@ export function ActNav({ active }) {
                 type="button"
                 onClick={() => go(item.id)}
                 aria-current={isActive ? 'true' : undefined}
-                className="group flex items-center gap-2.5 py-1 pl-3 pr-1"
+                className="group flex min-h-11 items-center gap-2.5 py-1 pl-3 pr-1"
               >
                 <span
                   className={`text-[11px] tracking-wide transition-opacity duration-500 sr-only lg:not-sr-only ${

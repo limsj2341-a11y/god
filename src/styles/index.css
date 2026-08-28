@@ -1061,6 +1061,13 @@ body {
 /* ---------------------------------------------------------------
    접근성
    --------------------------------------------------------------- */
+/* 누를 수 있는 것에는 더블탭 확대를 걸지 않는다. 모바일 브라우저가
+   두 번째 탭을 기다리느라 첫 탭 반응이 300ms 늦어지기 때문이다.
+   본문은 그대로 두므로 손가락으로 벌려 키우는 것은 살아 있다. */
+:where(a, button, input, [role='button'], label) {
+  touch-action: manipulation;
+}
+
 :where(a, button, input, textarea, [tabindex]):focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 3px;
