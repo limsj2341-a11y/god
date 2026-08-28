@@ -218,6 +218,10 @@ export function Page({ index, dissolve = false, className = '', children }) {
           write(sheetRef.current, sc, 'willChange', 'auto');
         }
 
+        // 넘김이 없으므로 막이 서로 덮지 않는다 — 클릭을 막을 이유도 없다.
+        write(page, pc, 'pointerEvents', '');
+        write(content, cc, 'pointerEvents', '');
+
         if (dissolve) {
           const d = clamp01((vh - rect.bottom) / (vh * DISSOLVE_SPAN));
           const past = d > 0.5;
@@ -332,6 +336,20 @@ export function Page({ index, dissolve = false, className = '', children }) {
       write(page, pc, 'opacity', fading ? pageOpacity.toFixed(3) : '');
       write(page, pc, 'willChange', fading ? 'opacity' : 'auto');
 
+      /*
+       * 안 보이는 막은 클릭도 받지 않는다.
+       *
+       * opacity 0 인 요소도 포인터 이벤트는 그대로 받는다. 그래서 아직 도착하지
+       * 않은 다음 막이 지금 읽는 막 위를 덮고 있으면, 보이지도 않으면서 클릭만
+       * 가로챈다 — 2막 퀴즈 8~10 번이 3막에 가려 눌리지 않았다
+       * (실측: 그 자리에서 elementFromPoint 가 3막의 section 과 제목을 돌려줬다).
+       *
+       * 넘어가는 중인 막도 마찬가지다. 지면이 90 도를 넘으면 뒷면이 되어
+       * 보이지 않는데, 그때도 클릭은 살아 있다.
+       */
+      const readable = pageOpacity > 0.5 && sheetTurn < 0.5;
+      write(page, pc, 'pointerEvents', readable ? '' : 'none');
+
       if (!dissolve) return;
 
       /* ── B. 소멸 (3막 → 4막) ── */
@@ -406,6 +424,9 @@ export function Page({ index, dissolve = false, className = '', children }) {
       write(content, cc, 'transformOrigin', `50% ${originY.toFixed(0)}px`);
       write(content, cc, 'transform', dissolving ? `scale(${scale.toFixed(4)})` : '');
       write(content, cc, 'opacity', dissolving ? contentOpacity.toFixed(3) : '');
+      // 흩어지는 중인 3막이 그 아래 도착하는 4막의 클릭을 가로채지 않도록.
+      // 담벼락에 글을 쓰는 동안에는 아직 살아 있어야 하므로 옅어진 뒤에 끊는다.
+      write(content, cc, 'pointerEvents', contentOpacity > 0.5 ? '' : 'none');
 
       // 빛 레이어 — 내용과 함께 사라지면 안 되므로 content 바깥에 둔다
       const light = lightRef.current;
