@@ -28,6 +28,15 @@ import { documentTop } from '../../lib/dom';
  */
 export const PULL_SPAN = 0.9;
 
+/** 우리 책이 꽂힌 칸 (0부터). ROWS 에서 ours: true 인 줄과 같아야 한다. */
+const OUR_ROW = 2;
+
+/**
+ * 우리 책의 키 — 칸 높이 대비.
+ * 그 칸에서 가장 큰 책이 0.75 다. 조금 크되 칸을 넘지 않는 값.
+ */
+const OUR_HEIGHT = 0.8;
+
 /** 표지가 다 젖혀지는 데 쓰는 스크롤 거리 (뷰포트 높이 대비) */
 export const OPEN_SPAN = 0.82;
 
@@ -75,8 +84,8 @@ const ROWS = [
   {
     items: [
       B(0.64, 26, 205, 'bands', '잃은 양'),
-      B(0.72, 34, 28, 'label', '은혜', -8),
-      B(0.66, 22, 152, 'line', '먼 나라'),
+      B(0.72, 34, 28, 'label', '은혜'),
+      B(0.66, 22, 152, 'line', '먼 나라', 7),
       G(34),
       B(0.7, 30, 188, 'twin', '아버지'),
       B(0.6, 38, 42, 'label', '돌아옴', 0, -5),
@@ -87,10 +96,10 @@ const ROWS = [
     items: [
       B(0.7, 30, 38, 'line', '두 아들'),
       B(0.62, 22, 172, 'bands', '잔치', 0, 5),
-      B(0.74, 36, 208, 'label', '맏아들'),
+      B(0.74, 36, 208, 'label', '맏아들', 6),
       G(40),
       B(0.6, 26, 12, 'stripes', '품'),
-      B(0.72, 34, 190, 'label', '용서', -6),
+      B(0.72, 34, 190, 'label', '용서'),
       B(0.64, 20, 60, 'twin', '길'),
     ],
   },
@@ -113,7 +122,7 @@ const ROWS = [
     items: [
       B(0.68, 24, 12, 'stripes', '사랑'),
       B(0.74, 32, 190, 'label', '탕자'),
-      B(0.6, 20, 206, 'plain', '이름', -6),
+      B(0.6, 20, 206, 'plain', '이름', 6),
       G(30),
       O('tallvase'),
       B(0.7, 28, 44, 'bands', '노을', 0, -4),
@@ -162,6 +171,48 @@ export function BookStage() {
       const pages = Array.from(document.querySelectorAll('[data-page]'));
       // 첫 페이지의 윗변은 경계가 아니다 — 그건 책을 펼치는 자리다.
       seamsRef.current = pages.slice(1).map(documentTop);
+
+      /*
+       * 꽂혀 있는 동안의 크기와 높이를 책장을 실제로 재서 정한다.
+       *
+       * 전에는 --shelf-scale 이 0.1 로 못박혀 있었다. 그런데 책의 원래 높이
+       * (--book-h)와 칸 높이(--case-row-h)의 비가 화면마다 크게 다르다 —
+       * 1280x900 에서 8.3 배인데 831x1063 에서는 9.2 배, 390x844 에서는 5.2 배다.
+       * 그래서 한 배율로는 어디서도 맞지 않았다. 세로로 긴 화면에서는 우리 책이
+       * 칸보다 18px 높아 선반을 뚫고 올라갔고, 좁은 화면에서는 반대로 파묻혔다.
+       *
+       * 이제 옆 책들과 같은 자를 쓴다. 키는 칸 높이의 0.8 — 그 칸에서 가장
+       * 큰 책(0.75)보다 조금 크되 칸을 넘지 않는다. 밑동은 옆 책들이 딛고 선
+       * 선반 바닥에 정확히 맞춘다.
+       */
+      const row = document.querySelector('.case-row');
+      const book = document.querySelector('.book');
+      if (!row || !book) return;
+
+      const rowRect = row.getBoundingClientRect();
+      const rowH = rowRect.height;
+      if (!rowH) return;
+
+      // 책이 실제로 딛는 면 — 칸 높이에서 선반판(border-bottom)을 뺀 안쪽 바닥.
+      const plank = Number.parseFloat(getComputedStyle(row).borderBottomWidth) || 0;
+      const ourRow = document.querySelectorAll('.case-row')[OUR_ROW];
+      const floorY = ourRow
+        ? ourRow.getBoundingClientRect().bottom - plank
+        : rowRect.bottom - plank;
+
+      // 스케일은 transform 이 먹기 전의 원래 높이를 기준으로 낸다.
+      const naturalH = book.offsetHeight;
+      if (!naturalH) return;
+
+      const scale = (rowH * OUR_HEIGHT) / naturalH;
+
+      // 화면 한가운데 놓인 책의 밑동을 선반 바닥으로 내리는 거리.
+      //   밑동 = 화면중앙 + y + (원래높이 * 배율) / 2
+      const y = floorY - window.innerHeight / 2 - (naturalH * scale) / 2;
+
+      const root = document.documentElement;
+      root.style.setProperty('--shelf-scale', scale.toFixed(5));
+      root.style.setProperty('--shelf-y', `${y.toFixed(1)}px`);
     };
 
     measure();

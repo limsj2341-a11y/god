@@ -320,9 +320,9 @@ body {
      왼쪽이다. 그만큼 오른쪽으로 밀어 책장의 빈자리에 맞춘다. */
   transform: translate(-50%, -50%)
     translateX(calc((1 - var(--book-out)) * (var(--book-depth) / 2 + var(--our-x))))
-    translateY(
-      calc((1 - var(--book-out)) * (var(--shelf-floor) - var(--shelf-scale) * 50dvh))
-    )
+    /* 밑동을 선반 바닥에 맞추는 거리. BookStage 가 책장을 재서 써 준다 —
+       책 높이와 칸 높이의 비가 화면마다 달라 고정식으로는 맞출 수 없다. */
+    translateY(calc((1 - var(--book-out)) * var(--shelf-y, 0px)))
     rotateY(calc((1 - var(--book-out)) * 90deg))
     scale(calc(var(--shelf-scale) + (1 - var(--shelf-scale)) * var(--book-out)));
 }
@@ -403,11 +403,20 @@ body {
 .book-spine-title {
   /* 책등 글씨는 세로로 선다. 크기는 책등 두께에 맞춘다 — 화면 폭과는 무관하다. */
   writing-mode: vertical-rl;
-  font-size: calc(var(--book-depth) * 0.42);
+  /* 0.42 는 책등 폭(26px)의 절반도 못 채워서, 꽂혀 있는 동안 글자가 가늘고
+     작아 읽히지 않았다. 폭을 채우도록 키운다 — 다섯 글자가 책등 높이에
+     들어가는 한계가 0.55 근처다. */
+  font-size: calc(var(--book-depth) * 0.55);
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.02em;
   white-space: nowrap;
-  color: color-mix(in srgb, var(--color-accent) 85%, #f6f3ee);
+  /* 옆 책들의 제목(.shelf-title)과 같은 정도로 읽혀야 한다. 앰버 85% 는
+     책등의 붉은 갈색 위에서 대비가 모자라 얼룩처럼 보였다 — 우리 책인데
+     이름이 가장 안 읽혔다. 크림색을 바탕에 두고 앰버는 온기로만 남긴다.
+     어두운 책등 위라 그림자도 옆 책들과 같이 깔아 준다. */
+  color: color-mix(in srgb, #f6f3ee 82%, var(--color-accent));
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.65);
   /* 꽂혀 있을 때 이 글씨는 한 축으로만 눌린다.
      책은 rotateY(90deg) 로 돌아서 있어 책등의 두께(Z)는 화면에서 거의 그대로
      나오는데(실측: 26px 책등이 화면에서 27px), 높이만 --shelf-scale 만큼
