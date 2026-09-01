@@ -12,7 +12,7 @@ export function Act2TwoSons() {
         <ActHeading eyebrow={act2.eyebrow} title={act2.title} />
       </Reveal>
 
-      <Reveal delay={120}>
+      <Reveal delay={75}>
         <p className="serif text-ink kr text-2xl leading-relaxed sm:text-3xl">{act2.lead}</p>
       </Reveal>
 

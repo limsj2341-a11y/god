@@ -13,8 +13,10 @@ export const EASE_RISE = [0.22, 0.61, 0.36, 1];
 /** 등장할 때 아래에서 올라오는 거리 */
 export const RISE_PX = 18;
 
-/** 등장에 걸리는 시간 */
-export const RISE_SEC = 0.9;
+/** 등장에 걸리는 시간.
+ * 0.9 는 처음 잡은 값(원래 CSS .reveal 을 그대로 옮긴 것)이었는데, 느긋하게
+ * 읽는 사이트치고도 한 문단 뜨는 데 너무 오래 걸린다는 요청으로 줄였다. */
+export const RISE_SEC = 0.55;
 
 /**
  * 눌렀을 때 곧바로 따라오는 반응.

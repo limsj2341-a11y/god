@@ -3,8 +3,10 @@ import { useReducedMotion } from 'motion/react';
 import { animate, cubicBezier, stagger } from 'animejs';
 import { EASE_RISE, RISE_PX } from '../../lib/anim';
 
-const CHAR_STEP = 42; // 글자 사이 간격(ms)
-const CHAR_DUR = 760;
+// Reveal(anim.js RISE_SEC)을 줄인 것과 같은 비율(0.9→0.55, 약 61%)로 맞춘다 —
+// 제목만 유독 느리게 뜨면 뒤따르는 문단과 속도가 어긋나 보인다.
+const CHAR_STEP = 26; // 글자 사이 간격(ms)
+const CHAR_DUR = 460;
 
 /**
  * 글자를 하나씩 들어 올리는 등장. 제목처럼 한 번만 읽히는 짧은 문장에 쓴다.

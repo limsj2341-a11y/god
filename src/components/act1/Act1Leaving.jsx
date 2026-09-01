@@ -20,25 +20,25 @@ export function Act1Leaving() {
       <SplitText
         as="h1"
         text={site.title}
-        delay={120}
+        delay={75}
         className="serif text-ink block text-5xl font-bold sm:text-7xl"
       />
 
-      <Reveal delay={520}>
+      <Reveal delay={320}>
         <p className="text-soft mt-4 text-sm tracking-wide sm:text-base">
           {site.author} · {site.originalTitle}
         </p>
         <p className="text-faint kr mt-2 text-sm">{site.tagline}</p>
       </Reveal>
 
-      <Reveal delay={280} className="mt-16 sm:mt-24">
+      <Reveal delay={170} className="mt-16 sm:mt-24">
         <h2 className="serif text-ink mb-6 text-3xl font-bold sm:text-4xl">{act1.title}</h2>
         <p className="text-soft kr whitespace-pre-line text-base leading-loose sm:text-lg">
           {act1.lead}
         </p>
       </Reveal>
 
-      <Reveal delay={380} className="mt-8">
+      <Reveal delay={230} className="mt-8">
         <p className="serif kr text-2xl leading-relaxed text-clay sm:text-3xl">“{act1.pull}”</p>
       </Reveal>
 

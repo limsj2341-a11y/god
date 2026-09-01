@@ -93,7 +93,7 @@ export function Act3ElderBrother() {
           <ActHeading eyebrow={act3.eyebrow} title={act3.title} />
         </Reveal>
 
-        <Reveal delay={120}>
+        <Reveal delay={75}>
           <p className="serif text-ink kr text-2xl leading-relaxed sm:text-3xl">{act3.lead}</p>
         </Reveal>
 

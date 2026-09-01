@@ -13,7 +13,7 @@ export function Act4Feast() {
         <ActHeading eyebrow={act4.eyebrow} title={act4.title} />
       </Reveal>
 
-      <Reveal delay={120}>
+      <Reveal delay={75}>
         <p className="serif text-ink kr text-2xl leading-relaxed sm:text-3xl">{act4.lead}</p>
       </Reveal>
 
