@@ -126,7 +126,10 @@ export function WallList({ entries, jumpToFirst = false }) {
                 onClick={() => setPage(n)}
                 aria-current={n === page ? 'page' : undefined}
                 aria-label={act3.wall.pageLabel(n + 1)}
-                className={`flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-xs tabular-nums transition-colors duration-300 ${
+                // 44px 은 목차 점·실천 카드 등 사이트 전체가 따르는 손가락 터치 기준
+                // (Apple HIG 44pt, WCAG 2.5.5 와 같은 값). 이 버튼만 36px 로 빠져 있었다 —
+                // 담벼락 쪽 나눔을 나중에 추가하면서 놓친 것.
+                className={`flex h-11 min-w-11 items-center justify-center rounded-full px-2 text-xs tabular-nums transition-colors duration-300 ${
                   n === page
                     ? 'text-ink bg-[color-mix(in_srgb,var(--color-accent)_18%,transparent)]'
                     : 'text-faint hover:text-soft'
