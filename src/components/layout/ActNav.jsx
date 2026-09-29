@@ -167,27 +167,28 @@ export function ActNav({ active }) {
                 >
                   {item.label}
                 </span>
-                {/* 점 자체가 커지는 것과, 지금 막을 감싸는 무리(halo)가 옮겨 다니는 것.
-                    무리는 layoutId 하나로 묶여 있어서 사라졌다 나타나는 대신
-                    이전 막에서 지금 막으로 미끄러진다 — 어디서 어디로 왔는지가 보인다. */}
+                {/* 점 자체가 커지는 것과, 지금 막을 감싸는 링이 옮겨 다니는 것. */}
                 <span className="relative flex h-2.5 w-2.5 items-center justify-center">
-                  {/* 지금 막을 읽은 만큼 차오르는 링. 표지에서는 읽을 것이 없으니 두지 않는다. */}
-                  {isActive && !atCover ? (
-                    <svg aria-hidden="true" viewBox="0 0 24 24" className="act-ring">
-                      <circle cx="12" cy="12" r="10" className="act-ring-track" />
-                      <circle cx="12" cy="12" r="10" className="act-ring-fill" />
-                    </svg>
-                  ) : null}
+                  {/* 지금 막을 감싸는 링. 막을 읽은 만큼 주황으로 차오른다.
+                      layoutId 하나로 묶여 있어서 사라졌다 나타나는 대신 이전 막에서
+                      지금 막으로 미끄러진다 — 어디서 어디로 왔는지가 보인다.
+
+                      전에는 여기에 옅은 앰버 원판(halo)을 따로 깔고 그 위에 링을 얹었다.
+                      어두운 바탕에서 16% 앰버는 탁한 갈색 원판이 되어, 점·원판·링
+                      세 겹이 버튼처럼 무겁게 보였다. 링 하나가 두 일을 다 한다.
+                      표지에서는 읽을 것이 없으니 링이 비어 있다(--act-p 0). */}
                   {isActive ? (
                     <motion.span
-                      layoutId="actnav-halo"
+                      layoutId="actnav-ring"
                       aria-hidden="true"
                       transition={softSpring}
-                      className="absolute h-5 w-5 rounded-full"
-                      style={{
-                        background: 'color-mix(in srgb, var(--color-accent) 16%, transparent)',
-                      }}
-                    />
+                      className="act-ring"
+                    >
+                      <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" className="act-ring-track" />
+                        <circle cx="12" cy="12" r="10" className="act-ring-fill" />
+                      </svg>
+                    </motion.span>
                   ) : null}
 
                   <motion.span
