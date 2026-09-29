@@ -23,6 +23,13 @@ import { documentTop } from '../../lib/dom';
  * 루트의 CSS 변수에만 쓴다.
  */
 
+/** 살짝 넘쳤다가 돌아와 멈추는 곡선 — 기울던 책이 자리를 잡는 몸짓 */
+function easeOutBack(t) {
+  const c1 = 1.4;
+  const c3 = c1 + 1;
+  return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+}
+
 /**
  * 책을 책장에서 꺼내는 데 쓰는 스크롤 거리 (뷰포트 높이 대비).
  * 책등만 보이던 책이 앞으로 나오면서 표지를 이쪽으로 돌린다.
@@ -143,6 +150,18 @@ const ROWS = [
   },
 ];
 
+/** 책이 빠진 자리에서 피어오르는 먼지. 부채꼴로 흩어지며 대개 위로 뜬다. */
+const SLOT_DUST = Array.from({ length: 12 }, (_, i) => {
+  const a = (-160 + (i * 140) / 11) * (Math.PI / 180); // 위쪽 반원
+  const r = 14 + ((i * 7) % 5) * 6;
+  return {
+    id: i,
+    dx: `${(Math.cos(a) * r).toFixed(1)}px`,
+    dy: `${(Math.sin(a) * r * 1.3 - 6).toFixed(1)}px`,
+    size: `${1.5 + (i % 3) * 0.7}px`,
+  };
+});
+
 /** 책·소품·빈자리를 하나씩 그린다 */
 function ShelfItem({ it }) {
   if (it.t === 'g') return <span className="shelf-gap" style={{ '--g': it.w }} />;
@@ -238,6 +257,10 @@ export function BookStage() {
       // 전에는 이 값들을 스크롤로 계속 계산해서, 활주로가 없는데도 책이 책장에
       // 꽂힌 크기로 남아 있다가 1막을 읽는 동안 커졌다.
       root.style.setProperty('--book-out', '1');
+      root.style.setProperty('--book-slide', '0');
+      root.style.setProperty('--book-tip', '0');
+      root.style.setProperty('--slot-dust', '0');
+      root.style.setProperty('--gap-lean', '0');
       root.style.setProperty('--book-open', '1');
       root.style.setProperty('--shelf-out', '0');
       root.style.setProperty('--book-veil', '0');
@@ -252,8 +275,34 @@ export function BookStage() {
      * 두 동작을 한 구간에 겹쳐 넣으면 책이 아직 돌아서는 중에 표지가 열려
      * 무엇을 보고 있는지 알 수 없게 된다. 앞뒤로 잇는다.
      */
-    const pull = easeSoft(clamp01(scrollY / Math.max(viewportH * PULL_SPAN, 1)));
+    /*
+     * 책을 뽑는 몸짓은 세 박자다.
+     *
+     *   걸기   손끝으로 책 윗머리를 걸어 당긴다 — 책이 앞으로 살짝 기운다(tip)
+     *   빼기   칸에서 미끄러져 나온다 — 가까워지는 만큼 조금 커진다(slide)
+     *   돌리기 칸을 벗어나 이쪽으로 돌아서며 커진다(out)
+     *
+     * 전에는 첫 스크롤부터 곧바로 돌리기가 시작돼서, 책이 칸에서 "빠져나오는"
+     * 순간 없이 제자리에서 돌며 부풀었다. 앞의 두 박자에 구간 초반을 내준다.
+     * 돌리기(--book-out)는 여러 곳이 읽는 값이라 뜻은 그대로 두고 시작만 늦춘다.
+     */
+    const pullRaw = clamp01(scrollY / Math.max(viewportH * PULL_SPAN, 1));
+    const pull = easeSoft(stage(pullRaw, 0.2, 1));
+    const slide = easeSoft(stage(pullRaw, 0, 0.32));
+    const tip = Math.sin(Math.PI * stage(pullRaw, 0, 0.4));
     root.style.setProperty('--book-out', pull.toFixed(4));
+    root.style.setProperty('--book-slide', slide.toFixed(4));
+    root.style.setProperty('--book-tip', tip.toFixed(4));
+
+    // 책이 빠진 자리. 먼지가 피어오르고, 오른쪽 이웃이 빈자리로 툭 기울었다가
+    // 자리를 잡는다(살짝 넘쳤다 돌아오는 곡선). 실제 책장에서 책은 빈자리가
+    // 있어야 기운다 — 책장을 처음 짤 때 세운 규칙 그대로다(ROWS 주석).
+    //
+    // 둘 다 책이 아직 가늘 때 끝나야 한다. 책은 칸 바로 앞에서 커지므로 0.38
+    // 즈음부터는 빈자리와 이웃을 통째로 가린다 — 처음에 0.3~0.64 에 두었더니
+    // 기울기와 먼지가 전부 책 뒤에서 일어나 하나도 보이지 않았다.
+    root.style.setProperty('--slot-dust', stage(pullRaw, 0.06, 0.4).toFixed(4));
+    root.style.setProperty('--gap-lean', easeOutBack(stage(pullRaw, 0.14, 0.36)).toFixed(4));
 
     const openRaw = clamp01(
       (scrollY - viewportH * PULL_SPAN) / Math.max(viewportH * OPEN_SPAN, 1),
@@ -324,6 +373,16 @@ export function BookStage() {
             <div className="case-row" key={ri}>
               {row.ours ? (
                 <>
+                  {/* 우리 책 자리 — 책이 빠지면 그 자리에서 먼지가 피어오른다 */}
+                  <span className="shelf-slot">
+                    {SLOT_DUST.map((d) => (
+                      <span
+                        key={d.id}
+                        className="shelf-slot-dust"
+                        style={{ '--dx': d.dx, '--dy': d.dy, '--ds': d.size }}
+                      />
+                    ))}
+                  </span>
                   {/* 좌우 두 무리로 갈라 가운데를 정확히 비운다.
                       한 줄로 두고 가운데 책에 여백을 주면, 줄 전체 폭이 바뀌면서
                       빈자리가 화면 한가운데에서 밀려난다(실측: 39px 빗나갔다). */}

@@ -339,8 +339,23 @@ body {
     /* 밑동을 선반 바닥에 맞추는 거리. BookStage 가 책장을 재서 써 준다 —
        책 높이와 칸 높이의 비가 화면마다 달라 고정식으로는 맞출 수 없다. */
     translateY(calc((1 - var(--book-out)) * var(--shelf-y, 0px)))
+    /* 걸기·빼기(BookStage). 칸에서 미끄러져 나오는 만큼 가까워져 12% 커지는데,
+       가운데를 기준으로 커지면 밑동이 선반 속으로 가라앉는다 — 그만큼 들어 준다.
+       손끝으로 윗머리를 걸어 당기는 동안 책이 이쪽으로 살짝 기운다.
+       둘 다 돌리기(--book-out)가 시작되면 걷힌다. */
+    translateY(
+      calc(
+        var(--book-slide, 0) * (1 - var(--book-out)) * var(--book-h) * var(--shelf-scale) * -0.06
+      )
+    )
+    rotateX(calc(var(--book-tip, 0) * (1 - var(--book-out)) * -7deg))
     rotateY(calc((1 - var(--book-out)) * 90deg))
-    scale(calc(var(--shelf-scale) + (1 - var(--shelf-scale)) * var(--book-out)));
+    scale(
+      calc(
+        (var(--shelf-scale) + (1 - var(--shelf-scale)) * var(--book-out)) *
+          (1 + var(--book-slide, 0) * (1 - var(--book-out)) * 0.12)
+      )
+    );
 }
 
 /* 책등 — 책장에 꽂혀 있는 동안 이쪽을 향하는 면.
@@ -535,7 +550,11 @@ body {
   position: absolute;
   left: 50%;
   top: calc(50% + var(--shelf-floor) - (var(--case-our-row) + 1) * var(--case-row-h));
-  transform: translateX(-50%);
+  /* 책이 이쪽으로 나오는 동안 책장은 뒤로 물러난다 — 조금 작아지고 어두워진다.
+     우리 책이 선 칸을 기준으로 줄어야 책이 빠져나온 자리와 어긋나지 않는다. */
+  transform: translateX(-50%) scale(calc(1 - (1 - var(--shelf-out)) * 0.07));
+  transform-origin: calc(50% + var(--our-x)) calc(100% - (4 - var(--case-our-row)) * var(--case-row-h));
+  filter: brightness(calc(1 - (1 - var(--shelf-out)) * 0.35));
   /* 사진의 책장은 한 칸의 안폭이 칸 높이의 2.3 배쯤이었다.
      폭을 px 로 못박으면 화면 높이가 달라질 때 비율이 어긋난다. */
   width: min(84vw, calc(var(--case-row-h) * 2.3 + 44px));
@@ -1482,6 +1501,117 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------
+   책장에서 책 뽑기 — 세부
+   --------------------------------------------------------------- */
+
+/* 우리 책이 선 자리. 칸 한가운데에서 --our-x 만큼 치우쳐 있다. */
+.shelf-slot {
+  position: absolute;
+  left: calc(50% + var(--our-x));
+  bottom: 0;
+  width: 0;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* 꽂혀 있는 동안 우리 책 책등 위로 금빛이 천천히 흘러내린다 — "이 책을 꺼내라"는
+   신호. 처음에는 책 둘레를 빛나게 했는데, 칸 안에 깔린 빛은 이웃 책들과 우리
+   책(앞 레이어)에 가려 보이지 않았다. 책등 자체에 얹는다.
+   책을 당기기 시작하면(--book-slide) 곧바로 걷힌다. */
+/* 반짝임이 책등 밖으로 새지 않게 자른다 */
+.book-spine-face {
+  overflow: hidden;
+}
+
+.book-spine-face::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 38%;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgb(255 226 170 / 0) 0%,
+    rgb(255 226 170 / 0.32) 50%,
+    rgb(255 226 170 / 0) 100%
+  );
+  opacity: calc(1 - var(--book-slide, 0));
+  animation: spine-glint 4.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+
+@keyframes spine-glint {
+  0% {
+    transform: translate3d(0, -110%, 0);
+  }
+  55%,
+  100% {
+    transform: translate3d(0, 270%, 0);
+  }
+}
+
+/* 책이 빠진 자리에서 피어오르는 먼지. 빠지는 진행도(--slot-dust)에 물려
+   흩어지며, 되감으면 도로 모인다. */
+.shelf-slot-dust {
+  position: absolute;
+  left: 0;
+  bottom: 18%;
+  width: var(--ds);
+  height: var(--ds);
+  border-radius: 9999px;
+  background: rgb(236 222 196);
+  box-shadow: 0 0 4px rgb(236 222 196 / 0.6);
+  transform: translate3d(
+    calc(var(--dx) * var(--slot-dust, 0) * 2.2),
+    calc(var(--dy) * var(--slot-dust, 0) * 2.2),
+    0
+  );
+  opacity: calc(
+    clamp(0, var(--slot-dust, 0) * 8, 1) * clamp(0, (1 - var(--slot-dust, 0)) * 1.6, 0.8)
+  );
+}
+
+/* 오른쪽 이웃이 빈자리로 기운다. 빈자리 쪽(왼쪽) 아래 모서리를 축으로 돈다.
+   원래 기울기(--lean)는 그대로 두고 그 위에 더한다. */
+.case-side-right > .shelf-book:first-child {
+  transform-origin: bottom left;
+  transform: rotate(calc(var(--lean, 0) * 1deg + var(--gap-lean, 0) * -11deg));
+}
+
+/* 표지 — 천을 씌운 하드커버. 가는 날실·씨실 결과 금박 테두리를 얹는다. */
+.book-cover-front::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgb(255 255 255 / 0.025) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.05) 0 1px, transparent 1px 3px);
+  /* 테두리는 표지 안쪽으로 들여 한 번. 선이 곧 금박이다. */
+  outline: 1px solid color-mix(in srgb, var(--color-accent) 34%, transparent);
+  outline-offset: calc(var(--book-w) * -0.045);
+}
+
+/* 금박 제목. 표지를 스치는 빛(::after)과 같은 박자로 금박 위를 광택이 흐른다. */
+.book-cover-title {
+  background: linear-gradient(
+    100deg,
+    #c9914a 0%,
+    #e6b872 35%,
+    #fff0cc 50%,
+    #e6b872 65%,
+    #c9914a 100%
+  );
+  background-size: 260% 100%;
+  background-position: calc(110% - var(--book-out, 0) * 120%) 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.45));
+}
+
 /* 목차 점 둘레의 읽기 링. --act-p 는 ActNav 가 스크롤마다 쓴다.
    둘레(2πr = 62.83)만큼 선을 그어 두고 아직 안 읽은 만큼 밀어 둔다. */
 .act-ring {
@@ -1579,6 +1709,8 @@ body {
   .shelf-lantern,
   .dawn-embers,
   .table-motes,
+  .shelf-slot,
+  .book-spine-face::after,
   .book-spill,
   .book-cover-front::after {
     display: none;
