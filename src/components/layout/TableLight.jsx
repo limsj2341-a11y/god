@@ -27,7 +27,8 @@ export function TableLight() {
         size: 2 + (i % 3),
         dur: `${16 + (i % 5) * 3.5}s`,
         delay: `${-((i * 3.7) % 16).toFixed(1)}s`,
-        drift: `${(i % 2 ? 1 : -1) * (14 + (i % 4) * 9)}px`,
+        // 떠오르는 길의 기울기(도). 키프레임에 값을 넣지 않고 요소를 기울인다.
+        tilt: `${((i % 2 ? 1 : -1) * (2 + (i % 4) * 1.5)).toFixed(1)}deg`,
       })),
     [],
   );
@@ -44,7 +45,7 @@ export function TableLight() {
               left: m.left,
               width: m.size,
               height: m.size,
-              '--drift': m.drift,
+              rotate: m.tilt,
               animationDuration: m.dur,
               animationDelay: m.delay,
             }}

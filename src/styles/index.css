@@ -267,7 +267,7 @@ body {
      배율(11 배)을 그대로 곱하면 295px 이 되어 이번엔 벽돌이 된다. 꽂혀 있을 때
      28%(옆 책들과 같은 비율), 다 꺼냈을 때 7%(실제 책의 두께 비율)가 되도록
      세 배까지만 키운다. */
-  --book-depth: calc(var(--book-depth-shelf) * (1 + 2 * var(--book-out, 0)));
+  /* --book-depth 는 --book-out 을 따라가므로 그 값이 쓰이는 자리(.book-scope)에서 정한다 */
   --shelf-out: 1;
   --book-veil: 1;
   --turn: 0;
@@ -276,6 +276,20 @@ body {
   /* 3막이 흩어지면 책도 함께 빛에 녹는다. Page(dissolve)가 새벽이 번지는
      정도에 맞춰 직접 써 준다(Dawn). */
   --book-gone: 0;
+}
+
+/* 책·책장·등불·막을 묶는 상자, 식탁 조명을 묶는 상자. 배치에는 끼어들지 않는다.
+   연출 값은 이 안의 요소마다 따로 쓴다(BookStage VAR_HOMES, Page VAR_HOME). */
+.book-scope,
+.table-scope {
+  display: contents;
+}
+
+/* 책의 두께. 네 면이 이 값으로 상자를 이룬다. 꺼낼수록 두꺼워진다
+   (자세한 사정은 :root 의 --book-depth-shelf 주석). --book-out 을 받는 자리
+   (.book-stage, BookStage 의 VAR_HOMES)에서 정해야 그 값을 따라간다. */
+.book-stage {
+  --book-depth: calc(var(--book-depth-shelf) * (1 + 2 * var(--book-out, 0)));
 }
 
 .book-runway {
@@ -532,7 +546,7 @@ body {
   inset: 0;
   z-index: 12;
   pointer-events: none;
-  opacity: var(--shelf-out);
+  /* 투명도는 BookStage 가 스크롤에 맞춰 바로 쓴다(책이 다 나오면 0) */
 }
 
 /* 책과 널이 같은 바닥선에 서야 한다.
@@ -556,9 +570,13 @@ body {
   top: calc(50% + var(--shelf-floor) - (var(--case-our-row) + 1) * var(--case-row-h));
   /* 책이 이쪽으로 나오는 동안 책장은 뒤로 물러난다 — 조금 작아지고 어두워진다.
      우리 책이 선 칸을 기준으로 줄어야 책이 빠져나온 자리와 어긋나지 않는다. */
-  transform: translateX(-50%) scale(calc(1 - (1 - var(--shelf-out)) * 0.07));
+  /* 줄어드는 정도는 BookStage 가 transform 에 바로 쓴다. 이것은 처음 값이다. */
+  transform: translateX(-50%);
   transform-origin: calc(50% + var(--our-x)) calc(100% - (4 - var(--case-our-row)) * var(--case-row-h));
-  filter: brightness(calc(1 - (1 - var(--shelf-out)) * 0.35));
+  /* 책장을 한 장으로 떼어 두면 줄어들 때 다시 그리지 않고 합성만 한다.
+     어둡게 하는 것도 filter 가 아니라 위에 얹은 막(::after)의 투명도로 한다 —
+     filter 값이 바뀌면 책 수십 권을 매 프레임 새로 그렸다(책 뽑기 구간 래스터 807ms). */
+  will-change: transform;
   /* 사진의 책장은 한 칸의 안폭이 칸 높이의 2.3 배쯤이었다.
      폭을 px 로 못박으면 화면 높이가 달라질 때 비율이 어긋난다. */
   width: min(84vw, calc(var(--case-row-h) * 2.3 + 44px));
@@ -570,6 +588,18 @@ body {
   box-shadow:
     0 18px 40px rgb(0 0 0 / 0.35),
     inset 0 0 30px rgb(0 0 0 / 0.45);
+}
+
+/* 책장이 물러나며 어두워지는 막. 투명도는 BookStage 가 바로 쓴다.
+   책장 안의 맨 위에 얹혀야 하므로 가상 요소가 아니라 진짜 요소다 — 가상 요소는
+   스크립트가 스타일을 바로 쓸 수 없다. */
+.bookcase-shade {
+  position: absolute;
+  inset: -12px;
+  z-index: 1;
+  pointer-events: none;
+  background: #000;
+  opacity: 0;
 }
 
 /* 칸 하나. 아래 널이 곧 다음 칸의 천장이다. */
@@ -1169,9 +1199,7 @@ body {
   --fg: #16171a;
 }
 
-.act4-arrive {
-  opacity: var(--act4-in, 1);
-}
+/* 4막이 떠오르는 정도는 Page(3막 소멸)가 이 상자의 opacity 에 바로 쓴다. */
 
 /* 소멸 3단계에서 흘러내린 뒤 4막의 상시 조명으로 남는다 */
 .table-light {
@@ -1322,8 +1350,7 @@ body {
   z-index: 14;
   pointer-events: none;
   overflow: hidden;
-  /* 책을 꺼내면 방이 밝아진다. 책장이 물러나는 것과 같은 값을 따른다. */
-  opacity: var(--shelf-out);
+  /* 책을 꺼내면 방이 밝아진다. 책장이 물러나는 것과 같은 값을 BookStage 가 바로 쓴다. */
 }
 
 /* 화면보다 훨씬 큰 판 하나. 옮겨도 가장자리가 드러나지 않는다. */
@@ -1351,6 +1378,12 @@ body {
   position: absolute;
   left: calc(50% + var(--mx));
   top: calc(50% + var(--my));
+  /* 옆으로 흐르는 정도는 움직이지 않는 translate 속성으로 따로 둔다.
+     키프레임 안에 var() 를 넣었더니 브라우저가 이 애니메이션을 합성기에 맡기지
+     못하고 먼지 18개를 매 프레임 직접 계산했다(책 뽑기 구간 2초에 1,188번).
+     키프레임은 상수만 쓰고, 옆 흐름은 요소 자체를 비스듬히 기울여(rotate, 인라인)
+     위로 떠오르는 길이 비스듬해지게 낸다. */
+  will-change: transform, opacity;
   border-radius: 9999px;
   background: rgb(255 232 196);
   box-shadow: 0 0 6px rgb(255 214 150 / 0.8);
@@ -1373,7 +1406,7 @@ body {
   }
   100% {
     opacity: 0;
-    transform: translate3d(var(--drift), -46px, 0);
+    transform: translate3d(0, -46px, 0);
   }
 }
 
@@ -1443,6 +1476,9 @@ body {
    되감으면 도로 내려온다. 제 차례(--start)가 오면 켜지고, 원이 화면을
    다 덮을 무렵 꺼진다. */
 .dawn-ember {
+  /* 빛나는 그림자를 가진 채 매 프레임 움직인다. 층으로 떼어 두지 않으면
+     움직일 때마다 새로 그렸다(새벽 전환 구간 래스터 비용의 대부분). */
+  will-change: transform, opacity;
   position: absolute;
   left: calc(50% + var(--ex));
   top: calc(62% + var(--ey));
@@ -1479,6 +1515,9 @@ body {
 .table-mote {
   position: absolute;
   bottom: -8px;
+  /* 키프레임에 var() 를 넣지 않는다(.shelf-mote 와 같은 이유). 옆 흐름은
+     요소를 비스듬히 기울여(rotate, 인라인) 낸다. */
+  will-change: transform, opacity;
   border-radius: 9999px;
   background: color-mix(in srgb, var(--color-accent) 80%, #fff);
   box-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 60%, transparent);
@@ -1501,7 +1540,7 @@ body {
   }
   100% {
     opacity: 0;
-    transform: translate3d(var(--drift), -30vh, 0);
+    transform: translate3d(0, -30vh, 0);
   }
 }
 
@@ -1559,6 +1598,7 @@ body {
 /* 책이 빠진 자리에서 피어오르는 먼지. 빠지는 진행도(--slot-dust)에 물려
    흩어지며, 되감으면 도로 모인다. */
 .shelf-slot-dust {
+  will-change: transform, opacity;
   position: absolute;
   left: 0;
   bottom: 18%;
@@ -1663,8 +1703,39 @@ body {
   transition: opacity 180ms linear;
 }
 
-/* 한 자씩 일어서는 제목 (SplitText variant="flip").
-   원근이 부모에 있어야 글자마다 제각각의 소실점이 생기지 않는다. */
+/* 글자 하나씩 등장하는 제목 (SplitText).
+   움직임은 전부 CSS 애니메이션이다 — 브라우저가 스스로 돌리므로 매 프레임
+   자바스크립트가 스타일을 고쳐 쓰지 않는다. 글자마다 다른 것은 시작 지연뿐이다
+   (SplitText 가 animation-delay 를 인라인으로 준다).
+   시작 전에는 숨겨 두고(.is-playing 이 붙으면 시작), 모션 축소는 그대로 보인다. */
+.split-text [data-char] {
+  opacity: 0;
+}
+
+.split-text.is-still [data-char] {
+  opacity: 1;
+}
+
+/* 떠오르기 — 값은 lib/anim.js 의 RISE_PX / EASE_RISE 와 같다 */
+.split-rise.is-playing [data-char] {
+  animation: split-rise 460ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes split-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 일어서기 — 아랫변을 축으로 뒤에서 한 자씩 선다.
+   끝 상태는 transform: none 이다. 각도가 0 이라도 3D 변환이 남아 있으면 글자가
+   따로 합성되어 배율 1 화면에서 흐려진다(책 제목에서 겪은 일).
+   원근은 부모에 둔다 — 글자마다 제각각의 소실점이 생기지 않게. */
 .split-flip {
   perspective: 700px;
   perspective-origin: 50% 100%;
@@ -1675,12 +1746,19 @@ body {
   backface-visibility: hidden;
 }
 
-/* 막 번호의 자리표. 제목 머리 전체를 덮고 움직이지 않는다 — 관찰은 이것이 받는다. */
-.act-numeral-anchor {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
+.split-flip.is-playing [data-char] {
+  animation: split-flip 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes split-flip {
+  from {
+    opacity: 0;
+    transform: translateY(0.35em) translateZ(-60px) rotateX(-92deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* 제목 뒤에 크게 깔리는 막 번호 — 속이 빈 윤곽선 숫자.

@@ -23,6 +23,84 @@ import { documentTop } from '../../lib/dom';
  * 루트의 CSS 변수에만 쓴다.
  */
 
+/*
+ * 연출 값을 받는 자리. 값마다 그것을 실제로 읽는 요소에만 쓴다.
+ *
+ * 처음에는 루트(html)에 썼다 — 페이지 전체(1,400개 요소)가 값을 물려받아 매
+ * 프레임 스타일을 다시 계산했다. 책 상자(.book-scope)로 좁혀도 책장의 책 수십 권이
+ * 함께 딸려 와서, 표지가 열리는 동안(바뀌는 값은 열린 정도 하나뿐) 200개 가까운
+ * 요소를 매 프레임 다시 계산했다. 이제 값마다 받는 자리를 나눈다.
+ */
+const VAR_HOMES = {
+  '--book-out': '.book-stage',
+  '--book-slide': '.book-stage',
+  '--book-tip': '.book-stage',
+  '--book-open': '.book-stage',
+  '--turn': '.book-stage',
+  '--turn-veil': '.book-stage',
+  '--turn-on': '.book-stage',
+  // 먼지와 기우는 이웃은 그 요소에만. 책장 전체(.shelf)에 쓰면 책 수십 권이 딸려 와
+  // 매 프레임 211개 요소를 다시 계산했다(한 번에 18~25ms).
+  '--slot-dust': '.shelf-slot',
+  '--gap-lean': '.case-side-right > .shelf-book:first-child',
+  '--book-veil': '.book-veil',
+};
+
+/*
+ * 책장이 물러나는 정도(shelfOut)는 변수로 물려주지 않고, 통째로 움직이는 요소의
+ * 스타일에 바로 쓴다 — 책장의 투명도, 책장의 크기, 책장을 어둡게 하는 막, 등불.
+ * 변수는 자손에게 물려져 자손 전부를 다시 계산하게 하지만, 투명도·transform 은
+ * 그 요소 하나로 끝나고 합성기에서 처리된다.
+ */
+const SHELF_TARGETS = {
+  shelf: '.shelf',
+  bookcase: '.bookcase',
+  shade: '.bookcase-shade',
+  lantern: '.shelf-lantern',
+};
+
+function makeShelfWriter() {
+  const els = {};
+  const last = {};
+  const put = (key, prop, value) => {
+    const k = `${key}.${prop}`;
+    if (last[k] === value) return;
+    let el = els[key];
+    if (!el || !el.isConnected) {
+      el = document.querySelector(SHELF_TARGETS[key]);
+      els[key] = el;
+    }
+    if (!el) return;
+    last[k] = value;
+    el.style[prop] = value;
+  };
+  return (shelfOut) => {
+    const gone = 1 - shelfOut;
+    put('shelf', 'opacity', shelfOut.toFixed(4));
+    put('lantern', 'opacity', shelfOut.toFixed(4));
+    // 책이 이쪽으로 나오는 동안 책장은 뒤로 물러난다 — 조금 작아지고 어두워진다
+    put('bookcase', 'transform', `translateX(-50%) scale(${(1 - gone * 0.07).toFixed(4)})`);
+    put('shade', 'opacity', (gone * 0.35).toFixed(4));
+  };
+}
+
+/** 값이 바뀔 때만, 받는 자리 모두에 쓴다. */
+function makeVarWriter() {
+  const last = {};
+  const homes = {};
+  return (name, value) => {
+    if (last[name] === value) return;
+    let els = homes[name];
+    if (!els || !els.every((el) => el.isConnected)) {
+      els = Array.from(document.querySelectorAll(VAR_HOMES[name] ?? ':root'));
+      homes[name] = els;
+    }
+    if (els.length === 0) return;
+    last[name] = value;
+    for (const el of els) el.style.setProperty(name, value);
+  };
+}
+
 /** 살짝 넘쳤다가 돌아와 멈추는 곡선 — 기울던 책이 자리를 잡는 몸짓 */
 function easeOutBack(t) {
   const c1 = 1.4;
@@ -249,24 +327,31 @@ export function BookStage() {
     };
   }, []);
 
+  const writeVarRef = useRef(null);
+  if (!writeVarRef.current) writeVarRef.current = makeVarWriter();
+  const writeShelfRef = useRef(null);
+  if (!writeShelfRef.current) writeShelfRef.current = makeShelfWriter();
+
   const onScroll = useCallback(({ scrollY, viewportH }) => {
-    const root = document.documentElement;
+    // 연출 값은 그것을 읽는 요소에만 쓴다(VAR_HOMES). 루트에 쓰면 페이지 전체가
+    // 매 프레임 스타일을 다시 계산한다.
+    const setVar = writeVarRef.current;
 
     if (reduced) {
       // 펼친 책에서 시작한다(index.css 의 모션 축소 규칙이 책장·표지·막을 숨긴다).
       // 전에는 이 값들을 스크롤로 계속 계산해서, 활주로가 없는데도 책이 책장에
       // 꽂힌 크기로 남아 있다가 1막을 읽는 동안 커졌다.
-      root.style.setProperty('--book-out', '1');
-      root.style.setProperty('--book-slide', '0');
-      root.style.setProperty('--book-tip', '0');
-      root.style.setProperty('--slot-dust', '0');
-      root.style.setProperty('--gap-lean', '0');
-      root.style.setProperty('--book-open', '1');
-      root.style.setProperty('--shelf-out', '0');
-      root.style.setProperty('--book-veil', '0');
-      root.style.setProperty('--turn', '0');
-      root.style.setProperty('--turn-veil', '0');
-      root.style.setProperty('--turn-on', '0');
+      setVar('--book-out', '1');
+      setVar('--book-slide', '0');
+      setVar('--book-tip', '0');
+      setVar('--slot-dust', '0');
+      setVar('--gap-lean', '0');
+      setVar('--book-open', '1');
+      writeShelfRef.current(0);
+      setVar('--book-veil', '0');
+      setVar('--turn', '0');
+      setVar('--turn-veil', '0');
+      setVar('--turn-on', '0');
       return;
     }
 
@@ -290,9 +375,9 @@ export function BookStage() {
     const pull = easeSoft(stage(pullRaw, 0.2, 1));
     const slide = easeSoft(stage(pullRaw, 0, 0.32));
     const tip = Math.sin(Math.PI * stage(pullRaw, 0, 0.4));
-    root.style.setProperty('--book-out', pull.toFixed(4));
-    root.style.setProperty('--book-slide', slide.toFixed(4));
-    root.style.setProperty('--book-tip', tip.toFixed(4));
+    setVar('--book-out', pull.toFixed(4));
+    setVar('--book-slide', slide.toFixed(4));
+    setVar('--book-tip', tip.toFixed(4));
 
     // 책이 빠진 자리. 먼지가 피어오르고, 오른쪽 이웃이 빈자리로 툭 기울었다가
     // 자리를 잡는다(살짝 넘쳤다 돌아오는 곡선). 실제 책장에서 책은 빈자리가
@@ -301,23 +386,23 @@ export function BookStage() {
     // 둘 다 책이 아직 가늘 때 끝나야 한다. 책은 칸 바로 앞에서 커지므로 0.38
     // 즈음부터는 빈자리와 이웃을 통째로 가린다 — 처음에 0.3~0.64 에 두었더니
     // 기울기와 먼지가 전부 책 뒤에서 일어나 하나도 보이지 않았다.
-    root.style.setProperty('--slot-dust', stage(pullRaw, 0.06, 0.4).toFixed(4));
-    root.style.setProperty('--gap-lean', easeOutBack(stage(pullRaw, 0.14, 0.36)).toFixed(4));
+    setVar('--slot-dust', stage(pullRaw, 0.06, 0.4).toFixed(4));
+    setVar('--gap-lean', easeOutBack(stage(pullRaw, 0.14, 0.36)).toFixed(4));
 
     const openRaw = clamp01(
       (scrollY - viewportH * PULL_SPAN) / Math.max(viewportH * OPEN_SPAN, 1),
     );
     const open = easeSoft(openRaw);
 
-    root.style.setProperty('--book-open', open.toFixed(4));
+    setVar('--book-open', open.toFixed(4));
 
     // 책장은 책이 다 나오면 물러난다. 뒤에 남아 있으면 지면 위로 나뭇결이 비친다.
-    root.style.setProperty('--shelf-out', (1 - pull).toFixed(4));
+    writeShelfRef.current(1 - pull);
 
     // 표지가 젖혀지는 동안에는 뒤에 있는 본문을 눌러 둔다.
     // 표지가 반쯤 열린 상태에서 글이 이미 또렷하면, 책을 여는 것이 아니라
     // 글 위에 표지가 얹혀 있다가 치워지는 것으로 보인다.
-    root.style.setProperty('--book-veil', (1 - open).toFixed(4));
+    setVar('--book-veil', (1 - open).toFixed(4));
 
     /* ── 낱장 넘김 ──
      *
@@ -344,7 +429,7 @@ export function BookStage() {
       }
     }
 
-    root.style.setProperty('--turn', easeTurn(turn).toFixed(4));
+    setVar('--turn', easeTurn(turn).toFixed(4));
 
     // 종이의 짙기 — 넘기는 내내 불투명하다.
     //
@@ -357,9 +442,9 @@ export function BookStage() {
     // 양 끝에서만 짧게 여닫아 툭 나타나고 툭 사라지는 것을 막는다.
     const EDGE = 0.12;
     const veil = clamp01(Math.min(1, turn / EDGE, (1 - turn) / EDGE));
-    root.style.setProperty('--turn-veil', veil.toFixed(4));
+    setVar('--turn-veil', veil.toFixed(4));
 
-    root.style.setProperty('--turn-on', turn > 0 && turn < 1 ? '1' : '0');
+    setVar('--turn-on', turn > 0 && turn < 1 ? '1' : '0');
   }, [reduced]);
 
   useScrollProgress(onScroll);
@@ -369,6 +454,8 @@ export function BookStage() {
       {/* 책장. 책이 다 나오면 물러난다. */}
       <div className="shelf" aria-hidden="true">
         <div className="bookcase">
+          {/* 책장이 물러나며 어두워지는 막. 투명도는 BookStage 가 바로 쓴다. */}
+          <span className="bookcase-shade" />
           {ROWS.map((row, ri) => (
             <div className="case-row" key={ri}>
               {row.ours ? (

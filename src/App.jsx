@@ -39,13 +39,18 @@ export default function App() {
       {/* 책을 꺼내 펼치기 전, 책장 구석에 작게 남는 서명 */}
       <CoverCredit />
 
-
-      {/* 덮인 책 → 펼쳐짐 → 3막이 흩어질 때 함께 사라짐 */}
-      <BookStage />
-      {/* 첫 화면의 어두운 방과 등불. 책을 꺼내면 걷힌다. */}
-      <ShelfLantern />
-      {/* 표지가 젖혀지는 동안 뒤의 본문을 눌러 두는 막 */}
-      <div className="book-veil" aria-hidden="true" />
+      {/* 책·책장·등불·막이 읽는 연출 값(--book-out 등)은 이 상자에만 쓴다.
+          루트(html)에 쓰면 값을 물려받는 페이지 전체(1,400개 요소)를 매 프레임
+          다시 계산해서, 책을 뽑고 펼치는 동안 렉이 걸렸다. display: contents 라
+          배치에는 끼어들지 않고 값만 물려준다. */}
+      <div className="book-scope">
+        {/* 덮인 책 → 펼쳐짐 → 3막이 흩어질 때 함께 사라짐 */}
+        <BookStage />
+        {/* 첫 화면의 어두운 방과 등불. 책을 꺼내면 걷힌다. */}
+        <ShelfLantern />
+        {/* 표지가 젖혀지는 동안 뒤의 본문을 눌러 두는 막 */}
+        <div className="book-veil" aria-hidden="true" />
+      </div>
 
       <main className="relative z-10">
         {/* 표지가 열리는 데 쓰는 스크롤 거리. 여기에는 읽을 것이 없다. */}
@@ -67,8 +72,11 @@ export default function App() {
         {/* 3막 끝의 등불이 새벽이 되어 화면을 덮는다. 다 번진 원이 곧 4막의 바탕이다.
             문서 순서가 곧 쌓는 순서다 — 3막 위, 식탁 조명과 4막 아래. */}
         <Dawn />
-        {/* 흩어진 빛이 화면 아래로 내려앉아 4막의 식탁 조명이 된다 */}
-        <TableLight />
+        {/* 흩어진 빛이 화면 아래로 내려앉아 4막의 식탁 조명이 된다.
+            조명 값(--flow-*)은 이 상자에만 쓴다(book-scope 와 같은 이유). */}
+        <div className="table-scope">
+          <TableLight />
+        </div>
 
         <Act4Feast />
       </main>

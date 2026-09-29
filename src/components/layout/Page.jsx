@@ -73,7 +73,47 @@ function writeCustom(el, cache, name, value) {
 }
 
 function writeVar(cache, name, value) {
-  writeCustom(document.documentElement, cache, name, value);
+  if (cache[name] === value) return;
+  for (const el of homesOf(name)) el.style.setProperty(name, value);
+  cache[name] = value;
+}
+
+/**
+ * 소멸 연출 값을 받는 자리.
+ *
+ * 전에는 전부 루트(html)에 썼다. 루트의 사용자 정의 속성은 페이지 전체가 물려받아
+ * 매 프레임 1,400개 요소의 스타일을 다시 계산했다 — 새벽 전환에서 렉이 걸린
+ * 까닭이다. 값을 실제로 읽는 요소(또는 그 작은 상자)에만 쓴다.
+ */
+const VAR_HOME = {
+  '--dawn-s': '.dawn',
+  '--dawn': '.dawn',
+  '--dissolve': '.dawn',
+  '--book-gone': '.book-stage',
+  '--flow-y': '.table-scope',
+  '--flow-o': '.table-scope',
+};
+
+const homeEls = {};
+
+/** 값을 받는 요소들. 책(.book-stage)처럼 같은 값을 읽는 요소가 둘 이상일 수 있다. */
+function homesOf(name) {
+  const sel = VAR_HOME[name];
+  if (!sel) return [document.documentElement];
+  const cached = homeEls[sel];
+  if (cached && cached.length && cached.every((el) => el.isConnected)) return cached;
+  const els = Array.from(document.querySelectorAll(sel));
+  homeEls[sel] = els;
+  return els.length ? els : [document.documentElement];
+}
+
+/** 4막이 떠오르는 정도. 4막 상자의 투명도에 바로 쓴다 — 변수로 두면 4막 전체가 물려받는다. */
+function writeAct4(cache, value) {
+  if (cache.act4 === value) return;
+  const el = document.querySelector('.act4-arrive');
+  if (!el) return;
+  cache.act4 = value;
+  el.style.opacity = value;
 }
 
 /**
@@ -245,7 +285,7 @@ export function Page({ index, dissolve = false, className = '', children }) {
           writeVar(rc, '--dissolve', '0');
           writeVar(rc, '--book-gone', past ? '1' : '0');
           markDawn(rc, past);
-          writeVar(rc, '--act4-in', '1'); // 모션 축소에서는 4막을 그냥 띄워 둔다
+          writeAct4(rc, '1'); // 모션 축소에서는 4막을 그냥 띄워 둔다
         }
         return;
       }
@@ -460,7 +500,7 @@ export function Page({ index, dissolve = false, className = '', children }) {
 
       // 4막이 도착하는 정도. 4막 글자는 어두운 색이라 원 바깥(어둠)에서는
       // 보이지 않고, 원이 화면을 거의 덮은 뒤에야 읽힌다 — 새벽이 와야 잔치가 보인다.
-      writeVar(rc, '--act4-in', easeSoft(stage(d, 0.55, 1)).toFixed(3));
+      writeAct4(rc, easeSoft(stage(d, 0.55, 1)).toFixed(3));
     },
     [reduced, dissolve],
   );

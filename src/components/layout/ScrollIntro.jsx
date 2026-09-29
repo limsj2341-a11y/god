@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { intro } from '../../data/content';
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 
 /**
  * 첫 화면 위에 얹히는 시작 안내.
@@ -15,6 +16,9 @@ import { intro } from '../../data/content';
  *
  * 앵커(#act2)로 들어온 경우에만 띄우지 않는다. 그건 특정 자리를 보러 온
  * 것이지 처음부터 읽으려는 것이 아니다.
+ *
+ * 모션 축소에서도 띄우지 않는다. 그때는 책장 없이 펼친 책에서 시작해 첫 화면이
+ * 곧 1막 본문이라, 안내가 본문 글줄 위에 겹쳐 둘 다 읽히지 않았다.
  */
 
 /** 이 정도 움직임은 스크롤로 치지 않는다 (주소창 접힘 등으로 몇 px 은 저절로 움직인다) */
@@ -50,7 +54,8 @@ export function ScrollIntro() {
     return () => clearTimeout(t);
   }, [leaving]);
 
-  if (!show) return null;
+  const reduced = usePrefersReducedMotion();
+  if (!show || reduced) return null;
 
   return (
     <div

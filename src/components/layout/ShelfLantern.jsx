@@ -44,7 +44,8 @@ export function ShelfLantern() {
           size: 1.5 + (i % 3),
           dur: `${9 + (i % 5) * 2.2}s`,
           delay: `${-((i * 1.7) % 9).toFixed(1)}s`,
-          drift: `${(i % 2 ? 1 : -1) * (8 + (i % 4) * 6)}px`,
+          // 떠오르는 길의 기울기(도). 키프레임에 값을 넣지 않고 요소를 기울인다.
+          tilt: `${((i % 2 ? 1 : -1) * (10 + (i % 4) * 7)).toFixed(0)}deg`,
         };
       }),
     [],
@@ -146,7 +147,7 @@ export function ShelfLantern() {
                 style={{
                   '--mx': m.x,
                   '--my': m.y,
-                  '--drift': m.drift,
+                  rotate: m.tilt,
                   width: m.size,
                   height: m.size,
                   animationDuration: m.dur,
