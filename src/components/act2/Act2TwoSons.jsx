@@ -1,6 +1,7 @@
 import { Section, ActHeading } from '../layout/Section';
 import { Reveal } from '../layout/Reveal';
 import { Prose } from '../ui/Prose';
+import { ScrubText } from '../ui/ScrubText';
 import { CardGrid } from '../ui/CardGrid';
 import { Quiz } from './Quiz';
 import { act2 } from '../../data/content';
@@ -8,12 +9,13 @@ import { act2 } from '../../data/content';
 export function Act2TwoSons() {
   return (
     <Section id="act2" index={1}>
-      <Reveal>
-        <ActHeading eyebrow={act2.eyebrow} title={act2.title} />
-      </Reveal>
+      <ActHeading eyebrow={act2.eyebrow} title={act2.title} index={1} />
 
       <Reveal delay={75}>
-        <p className="serif text-ink kr text-2xl leading-relaxed sm:text-3xl">{act2.lead}</p>
+        <ScrubText
+          text={act2.lead}
+          className="serif text-ink kr text-2xl leading-relaxed sm:text-3xl"
+        />
       </Reveal>
 
       <Prose sections={act2.sections} />

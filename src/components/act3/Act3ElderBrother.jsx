@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Section, ActHeading } from '../layout/Section';
 import { Reveal } from '../layout/Reveal';
 import { Prose } from '../ui/Prose';
+import { ScrubText } from '../ui/ScrubText';
 import { NoteBlock } from '../ui/NoteBlock';
 import { Quote } from '../ui/Quote';
 import { LanternRow } from './LanternRow';
@@ -89,12 +90,13 @@ export function Act3ElderBrother() {
       />
 
       <div className="relative">
-        <Reveal>
-          <ActHeading eyebrow={act3.eyebrow} title={act3.title} />
-        </Reveal>
+        <ActHeading eyebrow={act3.eyebrow} title={act3.title} index={2} />
 
         <Reveal delay={75}>
-          <p className="serif text-ink kr text-2xl leading-relaxed sm:text-3xl">{act3.lead}</p>
+          <ScrubText
+          text={act3.lead}
+          className="serif text-ink kr text-2xl leading-relaxed sm:text-3xl"
+        />
         </Reveal>
 
         <Prose sections={act3.sections} />

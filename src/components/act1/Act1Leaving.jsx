@@ -1,15 +1,20 @@
-import { Section } from '../layout/Section';
+import { Section, ActNumeral } from '../layout/Section';
 import { Reveal } from '../layout/Reveal';
 import { Prose } from '../ui/Prose';
 import { CardGrid } from '../ui/CardGrid';
 import { Quote } from '../ui/Quote';
 import { SplitText } from '../ui/SplitText';
+import { ScrubText } from '../ui/ScrubText';
+import { useBookOpened } from '../../hooks/useBookOpened';
 import { act1, site } from '../../data/content';
 
 export function Act1Leaving() {
+  // 첫머리는 처음부터 화면 안에 있지만 표지에 덮여 있다. 표지가 열릴 때 등장한다.
+  const opened = useBookOpened();
+
   return (
     <Section id="act1" index={0} innerClassName="max-w-3xl">
-      <Reveal>
+      <Reveal play={opened}>
         <p className="text-faint mb-4 text-xs tracking-[0.08em] sm:text-sm">
           {act1.eyebrow} · {site.subtitle}
         </p>
@@ -20,26 +25,41 @@ export function Act1Leaving() {
       <SplitText
         as="h1"
         text={site.title}
-        delay={75}
+        variant="flip"
+        play={opened}
+        delay={120}
         className="serif text-ink block text-5xl font-bold sm:text-7xl"
       />
 
-      <Reveal delay={320}>
+      <Reveal delay={620} play={opened}>
         <p className="text-soft mt-4 text-sm tracking-wide sm:text-base">
           {site.author} · {site.originalTitle}
         </p>
         <p className="text-faint kr mt-2 text-sm">{site.tagline}</p>
       </Reveal>
 
-      <Reveal delay={170} className="mt-16 sm:mt-24">
-        <h2 className="serif text-ink mb-6 text-3xl font-bold sm:text-4xl">{act1.title}</h2>
-        <p className="text-soft kr whitespace-pre-line text-base leading-loose sm:text-lg">
-          {act1.lead}
-        </p>
-      </Reveal>
+      <div className="relative mt-16 sm:mt-24">
+        <ActNumeral n={1} />
+        <SplitText
+          as="h2"
+          text={act1.title}
+          variant="flip"
+          trigger="view"
+          className="serif text-ink relative mb-6 block text-3xl font-bold sm:text-4xl"
+        />
+        <Reveal delay={170}>
+          <ScrubText
+            text={act1.lead}
+            className="text-soft kr text-base leading-loose sm:text-lg"
+          />
+        </Reveal>
+      </div>
 
       <Reveal delay={230} className="mt-8">
-        <p className="serif kr text-2xl leading-relaxed text-clay sm:text-3xl">“{act1.pull}”</p>
+        <ScrubText
+          text={`“${act1.pull}”`}
+          className="serif kr text-2xl leading-relaxed text-clay sm:text-3xl"
+        />
       </Reveal>
 
       <Prose sections={act1.sections} />

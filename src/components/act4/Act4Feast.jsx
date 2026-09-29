@@ -1,6 +1,7 @@
 import { Section, ActHeading } from '../layout/Section';
 import { Reveal } from '../layout/Reveal';
 import { Prose } from '../ui/Prose';
+import { ScrubText } from '../ui/ScrubText';
 import { Quote } from '../ui/Quote';
 import { QuestionList } from '../ui/QuestionList';
 import { PracticeCard } from './PracticeCard';
@@ -9,12 +10,13 @@ import { act4, site } from '../../data/content';
 export function Act4Feast() {
   return (
     <Section id="act4" index={3} innerClassName="act4-arrive">
-      <Reveal>
-        <ActHeading eyebrow={act4.eyebrow} title={act4.title} />
-      </Reveal>
+      <ActHeading eyebrow={act4.eyebrow} title={act4.title} index={3} />
 
       <Reveal delay={75}>
-        <p className="serif text-ink kr text-2xl leading-relaxed sm:text-3xl">{act4.lead}</p>
+        <ScrubText
+          text={act4.lead}
+          className="serif text-ink kr text-2xl leading-relaxed sm:text-3xl"
+        />
       </Reveal>
 
       <Prose sections={act4.sections} />

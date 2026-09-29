@@ -13,7 +13,7 @@ import { EASE_RISE, RISE_PX, RISE_SEC, VIEWPORT } from '../../lib/anim';
  * 애니메이션한다. 그런데 원래 CSS 는 .reveal 의 opacity 도 1 로 못박아
  * 페이드조차 남기지 않았다. 그 뜻을 지킨다.
  */
-export function Reveal({ as = 'div', delay = 0, className = '', children, ...rest }) {
+export function Reveal({ as = 'div', delay = 0, className = '', play, children, ...rest }) {
   const reduced = useReducedMotion();
 
   if (reduced) {
@@ -27,12 +27,18 @@ export function Reveal({ as = 'div', delay = 0, className = '', children, ...res
 
   const Tag = motion[as] ?? motion.div;
 
+  // play 를 주면 화면 진입이 아니라 그 값으로 시작한다(표지 아래 1막 첫머리처럼
+  // 처음부터 화면 안에 있지만 가려져 있는 자리).
+  const trigger =
+    play === undefined
+      ? { whileInView: { opacity: 1, y: 0 }, viewport: VIEWPORT }
+      : { animate: play ? { opacity: 1, y: 0 } : { opacity: 0, y: RISE_PX } };
+
   return (
     <Tag
       className={className}
       initial={{ opacity: 0, y: RISE_PX }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={VIEWPORT}
+      {...trigger}
       transition={{ duration: RISE_SEC, ease: EASE_RISE, delay: delay / 1000 }}
       {...rest}
     >

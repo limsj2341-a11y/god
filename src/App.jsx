@@ -6,6 +6,7 @@ import { ActNav } from './components/layout/ActNav';
 import { Page } from './components/layout/Page';
 import { TableLight } from './components/layout/TableLight';
 import { ScrollIntro } from './components/layout/ScrollIntro';
+import { ShelfLantern } from './components/layout/ShelfLantern';
 import { CoverCredit } from './components/layout/CoverCredit';
 import { Act1Leaving } from './components/act1/Act1Leaving';
 import { Act2TwoSons } from './components/act2/Act2TwoSons';
@@ -42,6 +43,8 @@ export default function App() {
 
       {/* 덮인 책 → 펼쳐짐 → 3막이 흩어질 때 함께 사라짐 */}
       <BookStage />
+      {/* 첫 화면의 어두운 방과 등불. 책을 꺼내면 걷힌다. */}
+      <ShelfLantern />
       {/* 표지가 젖혀지는 동안 뒤의 본문을 눌러 두는 막 */}
       <div className="book-veil" aria-hidden="true" />
 

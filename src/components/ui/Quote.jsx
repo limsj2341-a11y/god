@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { animate, cubicBezier, linear } from 'animejs';
 import { useInView } from '../../hooks/useInView';
+import { ScrubText } from './ScrubText';
 
 const SWEEP_H = 64; // 훑고 지나가는 빛의 길이(px)
 
@@ -76,9 +77,11 @@ export function Quote({ quote, className = '' }) {
         />
       ) : null}
 
-      <blockquote className="serif text-ink kr text-lg leading-relaxed sm:text-xl">
-        “{quote.text}”
-      </blockquote>
+      <ScrubText
+        as="blockquote"
+        text={`“${quote.text}”`}
+        className="serif text-ink kr text-lg leading-relaxed sm:text-xl"
+      />
       {quote.source ? (
         <figcaption className="text-faint mt-3 text-xs tracking-wide">— {quote.source}</figcaption>
       ) : null}

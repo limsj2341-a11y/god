@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { nav } from '../../data/content';
 import { JUMP_EVENT } from '../../hooks/useViewportFrame';
@@ -28,8 +28,51 @@ export function ActNav({ active }) {
    */
   const [atCover, setAtCover] = useState(true);
 
-  const onScroll = useCallback(({ scrollY, viewportH }) => {
+  const navRef = useRef(null);
+  // 막마다 [시작, 끝] 스크롤 위치. 문서 높이가 바뀔 때만 다시 잰다.
+  const rangesRef = useRef({ docH: 0, list: [] });
+  const progressRef = useRef('');
+
+  const onScroll = useCallback(({ scrollY, viewportH, docH }) => {
     setAtCover(scrollY < viewportH * COVER_SPAN);
+
+    /*
+     * 지금 막을 얼마나 읽었는지(0~1) — 점 둘레의 링이 이만큼 차오른다.
+     *
+     * 막의 시작은 목차 이동이 데려다 주는 자리(넘김이 끝나고 첫 문단이 놓이는
+     * 곳)와 같게 잡는다. 점을 눌러 막 도착했을 때 링이 비어 있어야 맞다.
+     * state 로 두지 않고 CSS 변수로 쓴다 — 스크롤마다 리렌더되면 안 된다.
+     */
+    const cache = rangesRef.current;
+    if (cache.docH !== docH) {
+      cache.docH = docH;
+      const starts = nav.items.map(({ id }) => {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        const page = el.closest('[data-page]');
+        if (!page) return documentTop(el);
+        const runIn = Number(page.dataset.page) === 0 ? 0 : viewportH * TURN_RUNWAY;
+        return documentTop(page) + runIn * TURN_READ_START;
+      });
+      cache.list = starts.map((start, i) => [
+        start ?? 0,
+        starts[i + 1] ?? Math.max(docH - viewportH, 1),
+      ]);
+    }
+
+    let p = 0;
+    for (const [a, b] of cache.list) {
+      if (scrollY >= a && scrollY < b) {
+        p = (scrollY - a) / Math.max(b - a, 1);
+        break;
+      }
+      if (scrollY >= b) p = 1;
+    }
+    const v = Math.min(Math.max(p, 0), 1).toFixed(3);
+    if (v !== progressRef.current && navRef.current) {
+      progressRef.current = v;
+      navRef.current.style.setProperty('--act-p', v);
+    }
   }, []);
 
   useScrollProgress(onScroll);
@@ -90,6 +133,7 @@ export function ActNav({ active }) {
 
   return (
     <nav
+      ref={navRef}
       aria-label={nav.label}
       className="act-rail fixed top-1/2 z-40 hidden -translate-y-1/2 sm:block"
     >
@@ -121,6 +165,13 @@ export function ActNav({ active }) {
                     무리는 layoutId 하나로 묶여 있어서 사라졌다 나타나는 대신
                     이전 막에서 지금 막으로 미끄러진다 — 어디서 어디로 왔는지가 보인다. */}
                 <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+                  {/* 지금 막을 읽은 만큼 차오르는 링. 표지에서는 읽을 것이 없으니 두지 않는다. */}
+                  {isActive && !atCover ? (
+                    <svg aria-hidden="true" viewBox="0 0 24 24" className="act-ring">
+                      <circle cx="12" cy="12" r="10" className="act-ring-track" />
+                      <circle cx="12" cy="12" r="10" className="act-ring-fill" />
+                    </svg>
+                  ) : null}
                   {isActive ? (
                     <motion.span
                       layoutId="actnav-halo"

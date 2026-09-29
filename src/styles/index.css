@@ -1239,6 +1239,155 @@ body {
   }
 }
 
+/* ---------------------------------------------------------------
+   모션 그래픽 레이어
+   책 연출(넘김·소멸) 위에 얹는 것들. 전부 transform / opacity 만 움직인다.
+   --------------------------------------------------------------- */
+
+/* 첫 화면의 등불. 방 전체를 어둡게 덮고 등불 자리만 뚫어 둔다.
+   책(.book-stage-front, z 13)보다 위에 있어야 우리 책도 같은 빛을 받는다.
+   시작 안내(z 30)·서명(z 20)·목차(z 40)는 그보다 위라 가려지지 않는다. */
+.shelf-lantern {
+  position: fixed;
+  inset: 0;
+  z-index: 14;
+  pointer-events: none;
+  overflow: hidden;
+  /* 책을 꺼내면 방이 밝아진다. 책장이 물러나는 것과 같은 값을 따른다. */
+  opacity: var(--shelf-out);
+}
+
+/* 화면보다 훨씬 큰 판 하나. 옮겨도 가장자리가 드러나지 않는다. */
+.shelf-lantern-light {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 260vmax;
+  height: 260vmax;
+  transform: translate3d(50vw, 44vh, 0) translate(-50%, -50%);
+  will-change: transform;
+  background: radial-gradient(
+    circle closest-side,
+    rgb(255 222 170 / 0.1) 0%,
+    rgb(255 222 170 / 0.03) 7%,
+    rgb(8 8 10 / 0) 12%,
+    rgb(8 8 10 / 0.34) 20%,
+    rgb(8 8 10 / 0.7) 32%,
+    rgb(8 8 10 / 0.82) 100%
+  );
+}
+
+/* 빛 속의 먼지. 등불과 함께 움직이고, 제자리에서 천천히 떠오른다. */
+.shelf-mote {
+  position: absolute;
+  left: calc(50% + var(--mx));
+  top: calc(50% + var(--my));
+  border-radius: 9999px;
+  background: rgb(255 232 196);
+  box-shadow: 0 0 6px rgb(255 214 150 / 0.8);
+  opacity: 0;
+  animation-name: mote-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@keyframes mote-drift {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  30% {
+    opacity: 0.75;
+  }
+  70% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift), -46px, 0);
+  }
+}
+
+/* 목차 점 둘레의 읽기 링. --act-p 는 ActNav 가 스크롤마다 쓴다.
+   둘레(2πr = 62.83)만큼 선을 그어 두고 아직 안 읽은 만큼 밀어 둔다. */
+.act-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  transform: rotate(-90deg);
+  overflow: visible;
+  pointer-events: none;
+}
+
+.act-ring circle {
+  fill: none;
+  stroke-width: 1.2;
+}
+
+.act-ring-track {
+  stroke: color-mix(in srgb, var(--fg) 14%, transparent);
+}
+
+.act-ring-fill {
+  stroke: var(--color-accent);
+  stroke-linecap: round;
+  stroke-dasharray: 62.83;
+  stroke-dashoffset: calc(62.83 * (1 - var(--act-p, 0)));
+}
+
+/* 읽는 만큼 밝아지는 글 (ScrubText). --lit 은 단어마다 0~1 로 차오른다.
+   값이 없으면(스크립트가 아직 안 돌았으면) 다 밝게 둔다 — 글이 안 보이는 것은
+   연출이 없는 것보다 나쁘다. */
+.scrub-word {
+  opacity: calc(var(--dim, 0.18) + (1 - var(--dim, 0.18)) * var(--lit, 1));
+  transition: opacity 180ms linear;
+}
+
+/* 한 자씩 일어서는 제목 (SplitText variant="flip").
+   원근이 부모에 있어야 글자마다 제각각의 소실점이 생기지 않는다. */
+.split-flip {
+  perspective: 700px;
+  perspective-origin: 50% 100%;
+}
+
+.split-flip [data-char] {
+  transform-origin: 50% 100%;
+  backface-visibility: hidden;
+}
+
+/* 제목 뒤에 크게 깔리는 막 번호 — 속이 빈 윤곽선 숫자.
+   글을 가리지 않도록 아주 옅게, 글보다 느리게 흐른다(ActNumeral). */
+.act-numeral {
+  position: absolute;
+  right: -0.04em;
+  top: -0.42em;
+  z-index: 0;
+  font-size: clamp(7rem, 22vw, 11.5rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--fg) 16%, transparent);
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 모션 축소에서는 책장을 건너뛰고 펼친 책에서 시작한다(위 .shelf 참고).
+     등불이 남아 있으면 비춰 줄 책장 없이 1막 첫머리를 어둡게 덮는다. */
+  .shelf-lantern {
+    display: none;
+  }
+
+  .scrub-word {
+    transition: none;
+  }
+}
+
 /* shadcn 이 만들어 둔 토큰 다리. 여기서 정의한 이름이 Tailwind 유틸리티가 된다.
    shadcn init 은 여기에 --font-sans: 'Geist Variable' 을 넣는데, 그러면 위 @theme 의
    Pretendard 를 덮어써서 본문 한글이 Geist 로 떨어진다(한글 자소가 없어 깨진다).
