@@ -10,7 +10,12 @@ import { act1, site } from '../../data/content';
 
 export function Act1Leaving() {
   // 첫머리는 처음부터 화면 안에 있지만 표지에 덮여 있다. 표지가 열릴 때 등장한다.
-  const opened = useBookOpened();
+  //
+  // 표지가 40% 열렸을 때 시작한다. 처음에는 75% 로 두었는데, 거기에 글자가
+  // 일어서는 시간까지 더해져 책을 다 펼치고도 한참 빈 지면을 보고 있어야 했다.
+  // 40% 면 표지가 넘어가는 동안 그 아래(막 .book-veil 이 걷히는 중)에서 제목이
+  // 함께 떠올라, 표지가 다 젖혀질 무렵 제목이 서 있다.
+  const opened = useBookOpened(0.4);
 
   return (
     <Section id="act1" index={0} innerClassName="max-w-3xl">
@@ -27,11 +32,11 @@ export function Act1Leaving() {
         text={site.title}
         variant="flip"
         play={opened}
-        delay={120}
+        delay={0}
         className="serif text-ink block text-5xl font-bold sm:text-7xl"
       />
 
-      <Reveal delay={620} play={opened}>
+      <Reveal delay={360} play={opened}>
         <p className="text-soft mt-4 text-sm tracking-wide sm:text-base">
           {site.author} · {site.originalTitle}
         </p>
