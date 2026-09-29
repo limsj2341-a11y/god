@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { nav } from '../../data/content';
 import { JUMP_EVENT } from '../../hooks/useViewportFrame';
@@ -34,49 +34,85 @@ export function ActNav({ active }) {
   // 막마다 [시작, 끝] 스크롤 위치. 문서 높이가 바뀔 때만 다시 잰다.
   const rangesRef = useRef({ docH: 0, list: [] });
   const progressRef = useRef('');
+  // 지금 막 번호는 배경(BackgroundStage)이 정한다. 스크롤 콜백 안에서 읽으려고 ref 로 든다.
+  const activeRef = useRef(active);
+  const lastMetricsRef = useRef(null);
 
-  const onScroll = useCallback(({ scrollY, viewportH, docH }) => {
-    // 모션 축소에서는 표지 구간이 없다 — 펼친 책(1막)에서 시작한다
-    setAtCover(!reduced && scrollY < viewportH * COVER_SPAN);
-
-    /*
-     * 지금 막을 얼마나 읽었는지(0~1) — 점 둘레의 링이 이만큼 차오른다.
-     *
-     * 막의 시작은 목차 이동이 데려다 주는 자리(넘김이 끝나고 첫 문단이 놓이는
-     * 곳)와 같게 잡는다. 점을 눌러 막 도착했을 때 링이 비어 있어야 맞다.
-     * state 로 두지 않고 CSS 변수로 쓴다 — 스크롤마다 리렌더되면 안 된다.
-     */
+  /*
+   * 지금 막을 얼마나 읽었는지(0~1) — 점 둘레의 링이 이만큼 차오른다.
+   *
+   * 링은 반드시 "지금 막"으로 표시된 막의 진행이어야 한다. 전에는 막의 구간을
+   * 따로 찾아 진행값을 냈는데, 지금 막을 정하는 기준(배경의 도착 지점)과 구간의
+   * 경계(첫 문단이 놓이는 자리)가 서로 달라서 막이 바뀌는 순간 어긋났다.
+   * 실측: 2막으로 넘어가는 순간 링이 1막 값 80% 로 나타나 99% 까지 차오르다가
+   * 540px 뒤에 0% 로 뚝 떨어졌다. 3막도 같았다.
+   *
+   * 이제 구간을 지금 막 번호로 고른다.
+   *   시작 — 첫 문단이 놓이는 자리(목차 이동이 데려다 주는 곳). 그 앞의 넘김
+   *          구간에서는 0 에 머문다 — 아직 읽을 글이 없다.
+   *   끝   — 다음 막이 "지금 막"이 되는 자리. 배경과 같은 식으로 잰다.
+   *          그래서 링이 정확히 100% 가 되는 순간 다음 점으로 넘어가고,
+   *          새 막에서는 빈 링부터 시작한다.
+   * state 로 두지 않고 CSS 변수로 쓴다 — 스크롤마다 리렌더되면 안 된다.
+   */
+  const writeProgress = useCallback(({ scrollY, viewportH, docH }) => {
     const cache = rangesRef.current;
     if (cache.docH !== docH) {
       cache.docH = docH;
-      const starts = nav.items.map(({ id }) => {
+      const hosts = nav.items.map(({ id }) => {
         const el = document.getElementById(id);
-        if (!el) return null;
-        const page = el.closest('[data-page]');
-        if (!page) return documentTop(el);
-        const runIn = Number(page.dataset.page) === 0 ? 0 : viewportH * TURN_RUNWAY;
-        return documentTop(page) + runIn * TURN_READ_START;
+        return el ? (el.closest('[data-page]') ?? el) : null;
       });
+      // 첫 문단이 놓이는 자리
+      const starts = hosts.map((host) => {
+        if (!host) return 0;
+        const idx = host.dataset.page;
+        if (idx === undefined) return documentTop(host);
+        const runIn = Number(idx) === 0 ? 0 : viewportH * TURN_RUNWAY;
+        return documentTop(host) + runIn * TURN_READ_START;
+      });
+      // 그 막이 "지금 막"이 되는 자리 — BackgroundStage 의 도착 지점과 같은 식
+      // (도착 = 윗변 + min(높이, 화면)/2, 판단 기준은 화면 한가운데)
+      const switches = hosts.map((host) =>
+        host
+          ? documentTop(host) + Math.min(host.offsetHeight, viewportH) / 2 - viewportH / 2
+          : 0,
+      );
       cache.list = starts.map((start, i) => [
-        start ?? 0,
-        starts[i + 1] ?? Math.max(docH - viewportH, 1),
+        start,
+        switches[i + 1] ?? Math.max(docH - viewportH, 1),
       ]);
     }
 
+    const range = cache.list[activeRef.current];
     let p = 0;
-    for (const [a, b] of cache.list) {
-      if (scrollY >= a && scrollY < b) {
-        p = (scrollY - a) / Math.max(b - a, 1);
-        break;
-      }
-      if (scrollY >= b) p = 1;
+    if (range) {
+      const [from, to] = range;
+      p = (scrollY - from) / Math.max(to - from, 1);
     }
     const v = Math.min(Math.max(p, 0), 1).toFixed(3);
     if (v !== progressRef.current && navRef.current) {
       progressRef.current = v;
       navRef.current.style.setProperty('--act-p', v);
     }
-  }, [reduced]);
+  }, []);
+
+  const onScroll = useCallback(
+    (metrics) => {
+      // 모션 축소에서는 표지 구간이 없다 — 펼친 책(1막)에서 시작한다
+      setAtCover(!reduced && metrics.scrollY < metrics.viewportH * COVER_SPAN);
+      lastMetricsRef.current = metrics;
+      writeProgress(metrics);
+    },
+    [reduced, writeProgress],
+  );
+
+  // 지금 막이 바뀌면 그 자리에서 링을 새 막의 값으로 바꿔 쓴다.
+  // 다음 스크롤을 기다리면 한 프레임 동안 이전 막의 값이 새 점에 얹힌다.
+  useEffect(() => {
+    activeRef.current = active;
+    if (lastMetricsRef.current) writeProgress(lastMetricsRef.current);
+  }, [active, writeProgress]);
 
   useScrollProgress(onScroll);
 
