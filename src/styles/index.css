@@ -1207,12 +1207,15 @@ body {
   top: 0;
   left: 50%;
   z-index: 0;
-  width: min(150vw, 1400px);
-  height: 80vh;
-  margin-left: calc(min(150vw, 1400px) / -2);
+  /* 절반 크기로 그려 두 배로 키운다. 부드러운 빛이라 티가 나지 않고, 화면보다
+     넓은 판(150vw x 80vh)을 그대로 그리면 휴대폰에서 그래픽 메모리를 크게 쥔다. */
+  width: min(75vw, 700px);
+  height: 40vh;
+  margin-left: calc(min(75vw, 700px) / -2);
   pointer-events: none;
   opacity: var(--flow-o, 0);
-  transform: translate3d(0, var(--flow-y, 5vh), 0);
+  transform-origin: 50% 0;
+  transform: translate3d(0, var(--flow-y, 5vh), 0) scale(2);
   /* 단계가 적으면 이만한 면적에서 8비트 경계가 동심원 띠로 드러난다.
      촘촘하게 끊어 부드럽게 떨어뜨린다. */
   background: radial-gradient(
@@ -1426,20 +1429,22 @@ body {
   opacity: var(--dawn, 0);
 }
 
-/* 빛의 원. 화면보다 훨씬 큰 판 하나를 키운다(scale).
-   안쪽 88% 까지는 4막 바탕색으로 꽉 차 있고, 바깥 12% 가 번짐이다.
-   중심에서 가장 먼 화면 모서리까지가 77vmax 라, 반지름 100vmax 의 88% 면
-   scale 0.9 에서 이미 모서리까지 덮는다. */
+/* 빛의 원. 512px 짜리 작은 판 하나를 키운다(scale, Page 가 --dawn-k 를 쓴다).
+   전에는 화면보다 훨씬 큰 판(200vmax)을 그려 두고 키웠다. 휴대폰(배율 3)에서
+   원판과 후광이 각각 약 98MB 의 그래픽 메모리를 차지했고, 크기가 바뀔 때마다
+   그 큰 그림을 다시 그리느라 3막→4막 전환이 크게 버벅였다. 부드러운
+   그라데이션이라 작게 그려 키워도 티가 나지 않고, 한 번 그린 뒤로는 다시 그리지
+   않는다. 안쪽 88% 까지는 4막 바탕색으로 꽉 차 있고 바깥 12% 가 번짐이다. */
 .dawn-disc,
 .dawn-rim {
   position: absolute;
   left: 50%;
   top: 62%;
-  width: 200vmax;
-  height: 200vmax;
-  margin: -100vmax 0 0 -100vmax;
+  width: 512px;
+  height: 512px;
+  margin: -256px 0 0 -256px;
   border-radius: 50%;
-  transform: scale(var(--dawn-s, 0));
+  transform: scale(var(--dawn-k, 0));
   will-change: transform;
 }
 
@@ -1460,7 +1465,7 @@ body {
    원이 작을 때는 앰버로 타오르다가 화면을 덮어 갈수록 옅어진다 —
    새벽빛은 불빛보다 희다. */
 .dawn-rim {
-  transform: scale(calc(var(--dawn-s, 0) * 1.7));
+  transform: scale(calc(var(--dawn-k, 0) * 1.7));
   background: radial-gradient(
     closest-side,
     rgb(255 226 178 / 0.5) 0%,
@@ -1470,6 +1475,15 @@ body {
     rgb(224 167 92 / 0) 100%
   );
   opacity: calc(1 - var(--dawn-s, 0));
+}
+
+/* 원이 화면을 다 덮은 뒤에는 단색 바탕으로 갈아 끼운다. 그때부터가 4막의
+   바탕이다 — 커다랗게 늘린 원을 4막 내내 붙들고 있지 않는다. */
+.dawn-fill {
+  position: absolute;
+  inset: 0;
+  background: #f6f3ee;
+  opacity: var(--dawn-fill, 0);
 }
 
 /* 빛에서 떨어져 나와 떠오르는 불씨. 소멸 진행도(--dissolve)에 물려 있어

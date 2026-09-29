@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 /** 빛에서 떨어져 나와 떠오르는 불씨 수 */
-const EMBER_COUNT = 26;
+const EMBER_COUNT = 16;
 
 /**
  * 3막에서 4막으로 — 등불 하나가 새벽이 되어 화면을 덮는다.
@@ -11,14 +11,17 @@ const EMBER_COUNT = 26;
  * 않는다 — 소멸 계산과 빛의 그림이 서로 얽히지 않게 TableLight 와 같은 방식을 쓴다.
  *
  *   --dawn-s    빛의 원 크기(0~1). 1 이면 화면을 넉넉히 덮는다.
+ *   --dawn-k    그 크기를 512px 판의 배율로 옮긴 값(Page 가 화면 크기로 계산한다).
+ *   --dawn-fill 원이 화면을 다 덮은 뒤 단색 바탕으로 갈아 끼우는 정도(0~1).
  *   --dawn      원이 켜지는 정도(0~1). 크기가 0 에서 툭 튀어나오지 않게 한다.
  *   --dissolve  소멸 진행도(0~1). 불씨가 이 값에 물려 떠오른다 — 되감으면 내려온다.
  *
  * 다 번진 뒤에는 이 원이 곧 4막의 바탕이다. 그래서 main 안, 3막 페이지와 4막
  * 사이에 둔다. 문서 순서상 3막 위, 4막 아래에 그려진다.
  *
- * 원은 커다란 판 하나를 transform: scale 로 키운다. 그라데이션의 크기를 바꾸면
+ * 원은 512px 판 하나를 transform: scale 로 키운다. 그라데이션의 크기를 바꾸면
  * 매 프레임 화면 전체를 다시 칠하는데, 판을 키우면 합성만 다시 한다.
+ * 판을 작게 그리는 이유는 index.css 의 .dawn-disc 주석을 볼 것.
  */
 export function Dawn() {
   const embers = useMemo(
@@ -47,6 +50,7 @@ export function Dawn() {
       {/* 후광이 원 뒤에 깔린다 — 앞에 두면 원 안쪽까지 앰버로 물든다 */}
       <div className="dawn-rim" />
       <div className="dawn-disc" />
+      <div className="dawn-fill" />
       <div className="dawn-embers">
         {embers.map((e) => (
           <span

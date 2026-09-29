@@ -2,13 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useViewportFrame } from '../../hooks/useViewportFrame';
 import { TURN_PHASE, TURN_READ_START, TURN_RUNWAY } from '../../lib/anim';
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
-import {
-  SUPPORTS_MASK,
-  clamp01,
-  easeTurn,
-  easeSoft,
-  stage,
-} from '../../lib/motion';
+import { clamp01, easeTurn, easeSoft, stage } from '../../lib/motion';
 
 /**
  * 책의 한 페이지.
@@ -87,6 +81,8 @@ function writeVar(cache, name, value) {
  */
 const VAR_HOME = {
   '--dawn-s': '.dawn',
+  '--dawn-k': '.dawn',
+  '--dawn-fill': '.dawn',
   '--dawn': '.dawn',
   '--dissolve': '.dawn',
   '--book-gone': '.book-stage',
@@ -281,6 +277,8 @@ export function Page({ index, dissolve = false, className = '', children }) {
           writeVar(rc, '--flow-y', '38vh');
           // 새벽은 번지지 않고 한 번에 바뀐다. 절반을 넘으면 4막의 밝음이다.
           writeVar(rc, '--dawn-s', past ? '1' : '0');
+          writeVar(rc, '--dawn-k', '0');
+          writeVar(rc, '--dawn-fill', past ? '1' : '0');
           writeVar(rc, '--dawn', past ? '1' : '0');
           writeVar(rc, '--dissolve', '0');
           writeVar(rc, '--book-gone', past ? '1' : '0');
@@ -429,36 +427,13 @@ export function Page({ index, dissolve = false, className = '', children }) {
 
       // 세 단계를 서로 겹쳐 둔다. 딱딱 끊으면 이음매마다 속도가 꺾이고
       // 3막이 뚝 하고 사라진다(실측: 담벼락 짙기가 1.00 에서 0.08 로 한 걸음에).
-      const s1 = easeSoft(stage(d, 0, 0.45)); // 스밈
       const s2 = easeSoft(stage(d, 0.22, 0.8)); // 용해
       const s3 = easeSoft(stage(d, 0.72, 1)); // 식탁 조명으로 내려앉음
 
-      // 1단계: 가장자리부터 안쪽으로. 2단계: 남은 글이 빛 속으로 옅어진다.
-      const inner = 100 - 35 * s1 - 45 * s2; // 100 → 65 → 20
-      const outer = inner + 25;
-
-      if (SUPPORTS_MASK && d > 0.001) {
-        // 마스크는 자기 상자(.page-content, sticky 로 화면 한 장) 기준으로 잰다.
-        // .page 기준으로 쟀더니 좌표가 2,000px 넘게 어긋나 마스크가 상자 밖에
-        // 놓였고, 소멸이 시작되는 순간 내용이 통째로 지워졌다.
-        const crect = content.getBoundingClientRect();
-        const maskTopVp = Math.max(0, crect.top);
-        const maskBottomVp = Math.min(vh, crect.bottom);
-        const maskH = Math.max(1, maskBottomVp - maskTopVp);
-        const maskTopEl = maskTopVp - crect.top;
-
-        const mask = `radial-gradient(115% 85% at 50% 45%, #000 ${inner.toFixed(1)}%, transparent ${outer.toFixed(1)}%)`;
-        const size = `100% ${maskH.toFixed(0)}px`;
-        const pos = `50% ${maskTopEl.toFixed(0)}px`;
-        write(content, cc, 'maskImage', mask);
-        write(content, cc, 'WebkitMaskImage', mask);
-        write(content, cc, 'maskSize', size);
-        write(content, cc, 'WebkitMaskSize', size);
-        write(content, cc, 'maskPosition', pos);
-        write(content, cc, 'WebkitMaskPosition', pos);
-        write(content, cc, 'maskRepeat', 'no-repeat');
-        write(content, cc, 'WebkitMaskRepeat', 'no-repeat');
-      } else {
+      // 지면을 가장자리부터 걷던 마스크(mask-image)는 없앴다. 값이 바뀔 때마다
+      // 화면 한 장 크기의 글 레이어를 통째로 다시 그려서, 휴대폰에서 전환을 무겁게
+      // 한 원인 중 하나였다. 새벽 원이 한가운데부터 덮어 오므로 글은 투명도로만 녹는다.
+      if (content.style.maskImage || content.style.webkitMaskImage) {
         write(content, cc, 'maskImage', '');
         write(content, cc, 'WebkitMaskImage', '');
       }
@@ -466,7 +441,7 @@ export function Page({ index, dissolve = false, className = '', children }) {
       // 녹는 글은 빛을 따라 조금 떠오른다. 부풀리면(scale) 화면 밖에서 커져
       // 보이지 않으므로 위로만 민다.
       const lift = -28 * s2;
-      const contentOpacity = SUPPORTS_MASK ? 1 - s2 : 1 - easeSoft(stage(d, 0.1, 0.75));
+      const contentOpacity = 1 - s2;
 
       const dissolving = d > 0.001;
       write(content, cc, 'willChange', dissolving ? 'transform, opacity' : 'auto');
@@ -486,6 +461,16 @@ export function Page({ index, dissolve = false, className = '', children }) {
       const grow = stage(d, 0.06, 0.9);
       const dawnS = d > 0.001 ? 0.018 + 0.982 * grow * grow : 0;
       writeVar(rc, '--dawn-s', dawnS.toFixed(4));
+      // 512px 판의 배율. dawnS 1 이 예전의 200vmax(= 화면 긴 변의 두 배)와 같다.
+      const vw = window.innerWidth;
+      const long = Math.max(vw, vh);
+      const k = (dawnS * 2 * long) / 512;
+      writeVar(rc, '--dawn-k', k.toFixed(4));
+      // 원의 꽉 찬 안쪽(반지름의 88%)이 가장 먼 화면 모서리까지 닿으면 단색으로 갈아 끼운다.
+      // 원 중심은 화면 가로 가운데, 세로 62% 지점이다(index.css .dawn-disc).
+      const corner = Math.hypot(vw / 2, vh * 0.62);
+      const reach = (0.88 * 256 * k) / Math.max(corner, 1);
+      writeVar(rc, '--dawn-fill', clamp01((reach - 1) / 0.35).toFixed(3));
       // 원이 켜지는 순간을 부드럽게 — 크기가 0 에서 튀어나오지 않게
       writeVar(rc, '--dawn', easeSoft(stage(d, 0, 0.12)).toFixed(3));
       // 불씨가 읽는 진행도
