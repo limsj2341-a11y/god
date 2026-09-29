@@ -1543,11 +1543,34 @@ body {
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.04em;
+  /* 윤곽선만으로는 어두운 막에서 번호가 거의 사라졌다. 같은 16% 라도 어두운
+     종이 위의 밝은 선이 밝은 종이 위의 어두운 선보다 훨씬 옅게 보여서, 4막의
+     04 만 보이고 01~03 은 안 보였다. 어두운 막은 선을 더 진하게 긋고, 숫자 속을
+     위에서 아래로 옅어지는 빛으로 살짝 채워 네 막이 같은 무게로 보이게 한다. */
   color: transparent;
-  -webkit-text-stroke: 1px color-mix(in srgb, var(--fg) 16%, transparent);
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--fg) 34%, transparent);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--fg) 9%, transparent) 0%,
+    color-mix(in srgb, var(--fg) 2%, transparent) 75%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
   pointer-events: none;
   user-select: none;
   will-change: transform;
+}
+
+/* 밝은 4막은 어두운 선이 또렷하게 읽히므로 덜 진하게 둔다 */
+#act4 .act-numeral {
+  -webkit-text-stroke-color: color-mix(in srgb, var(--fg) 20%, transparent);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--fg) 5%, transparent) 0%,
+    color-mix(in srgb, var(--fg) 1%, transparent) 75%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
 }
 
 @media (prefers-reduced-motion: reduce) {
