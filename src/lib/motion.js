@@ -74,32 +74,9 @@ const supports = (prop, value) => {
 /** mask-image 미지원이면 단순 opacity 페이드로 폴백한다 */
 export const SUPPORTS_MASK = supports('mask-image', 'radial-gradient(#000, transparent)');
 
-const SUPPORTS_BACKDROP = supports('backdrop-filter', 'blur(4px)');
-
-/**
- * 블러 허용 여부.
- *
- * 블러는 이 연출에서 유일하게 매 프레임 리페인트를 강제하는 속성이라
- * 저사양·모바일에서는 처음부터 버린다. 나머지 단계(transform/opacity/mask)는
- * 그대로 돌아가므로 연출이 깨지지는 않는다.
+/*
+ * 배경 블러(backdrop-filter) 판별은 걷어 냈다. 소멸 빛 레이어 뒤를 흐리는 데만
+ * 썼는데, 그 레이어가 전환을 회색 안개로 만들던 장본인이라 새벽(Dawn)으로
+ * 바꾸면서 함께 없앴다. 블러는 매 프레임 리페인트를 강제하던 유일한 속성이기도
+ * 했다 — 헤드리스 측정에서 전환 구간 p50 이 49.9ms → 16.7ms 로 내려왔다.
  */
-function detectBlur() {
-  if (!SUPPORTS_BACKDROP) return false;
-  if (typeof window === 'undefined') return false;
-
-  const coarse = window.matchMedia?.('(pointer: coarse)').matches;
-  if (coarse) return false;
-
-  const mem = navigator.deviceMemory;
-  if (typeof mem === 'number' && mem < 4) return false;
-
-  const cores = navigator.hardwareConcurrency;
-  if (typeof cores === 'number' && cores < 4) return false;
-
-  return window.innerWidth >= 768;
-}
-
-export const ALLOW_BLUR = detectBlur();
-
-/** 명세 상한 */
-export const MAX_BLUR_PX = 6;

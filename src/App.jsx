@@ -5,6 +5,7 @@ import { BookStage, BookRunway } from './components/layout/BookStage';
 import { ActNav } from './components/layout/ActNav';
 import { Page } from './components/layout/Page';
 import { TableLight } from './components/layout/TableLight';
+import { Dawn } from './components/layout/Dawn';
 import { ScrollIntro } from './components/layout/ScrollIntro';
 import { ShelfLantern } from './components/layout/ShelfLantern';
 import { CoverCredit } from './components/layout/CoverCredit';
@@ -38,8 +39,6 @@ export default function App() {
       {/* 책을 꺼내 펼치기 전, 책장 구석에 작게 남는 서명 */}
       <CoverCredit />
 
-      {/* 3막에서 흘러내린 빛이 여기 남아 4막의 식탁 조명이 된다 (본문 뒤) */}
-      <TableLight />
 
       {/* 덮인 책 → 펼쳐짐 → 3막이 흩어질 때 함께 사라짐 */}
       <BookStage />
@@ -64,6 +63,12 @@ export default function App() {
         <Page index={2} dissolve>
           <Act3ElderBrother />
         </Page>
+
+        {/* 3막 끝의 등불이 새벽이 되어 화면을 덮는다. 다 번진 원이 곧 4막의 바탕이다.
+            문서 순서가 곧 쌓는 순서다 — 3막 위, 식탁 조명과 4막 아래. */}
+        <Dawn />
+        {/* 흩어진 빛이 화면 아래로 내려앉아 4막의 식탁 조명이 된다 */}
+        <TableLight />
 
         <Act4Feast />
       </main>

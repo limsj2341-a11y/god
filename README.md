@@ -156,7 +156,30 @@ VITE_SUPABASE_KEY=…
 | [src/components/layout/Page.jsx](src/components/layout/Page.jsx) | 페이지 넘김(A)과 소멸 3단계(B). 스크롤 진행도를 받아 인라인 스타일을 직접 쓴다 |
 | [src/components/layout/TableLight.jsx](src/components/layout/TableLight.jsx) | 흘러내린 빛이 남아 4막의 상시 조명이 되는 고정 레이어 |
 | [src/hooks/useViewportFrame.js](src/hooks/useViewportFrame.js) | IntersectionObserver 로 켜고 끄는 rAF 루프. scroll 이벤트에는 아무 연산도 붙이지 않는다 |
-| [src/lib/motion.js](src/lib/motion.js) | cubic-bezier 직접 계산, mask/blur 지원 판별 |
+| [src/lib/motion.js](src/lib/motion.js) | cubic-bezier 직접 계산, mask 지원 판별 |
+| [src/components/layout/Dawn.jsx](src/components/layout/Dawn.jsx) | 3막 끝의 등불이 새벽으로 번져 화면을 덮는 원. 다 번지면 4막의 바탕이 된다 |
+
+## 모션 그래픽 레이어
+
+이야기의 흐름(밤 → 새벽, 떠남 → 잔치)을 빛 하나로 잇는다. 등불이 책장을
+비추고, 책을 열면 빛이 새어 나오고, 글은 읽는 만큼 밝아지고, 3막 끝의
+등불이 새벽이 되어 4막을 연다. 전부 스크롤에 물려 있어 되감으면 되돌아간다
+(버튼 반응 같은 한 번짜리 몸짓만 시간 기반).
+
+| 장면 | 파일 | 무엇이 움직이나 |
+| --- | --- | --- |
+| 책장 | [ShelfLantern.jsx](src/components/layout/ShelfLantern.jsx) | 어두운 방의 등불이 포인터를 느긋하게 따라오고(손가락 기기에서는 제자리에서 흔들림) 빛 속에 먼지가 떠오른다 |
+| 책 꺼내기·펼치기 | index.css `.book-cover-front::after` / `.book-spill` | 표지 위를 빛이 한 번 스치고, 표지가 열릴 때 책등 쪽에서 빛이 새어 나온다 |
+| 막 제목 | [SplitText.jsx](src/components/ui/SplitText.jsx) `variant="flip"` | 글자가 아랫변을 축으로 한 자씩 일어선다. 다 선 뒤에는 3D 변환을 걷어 글자가 흐려지지 않는다 |
+| 막 번호 | [Section.jsx](src/components/layout/Section.jsx) `ActNumeral` | 윤곽선 숫자(01~04)가 글보다 느리게 흐른다 |
+| 첫 문장·인용 | [ScrubText.jsx](src/components/ui/ScrubText.jsx) | 단어가 스크롤을 따라 하나씩 밝아진다 |
+| 비교 카드 | [CardGrid.jsx](src/components/ui/CardGrid.jsx) | 두 장짜리 비교는 양쪽에서 마주 들어오고, 그 밖에는 차례로 떠오른다 |
+| 목차 | [ActNav.jsx](src/components/layout/ActNav.jsx) | 지금 막을 읽은 만큼 점 둘레의 링이 차오른다 |
+| 3막 → 4막 | [Page.jsx](src/components/layout/Page.jsx) · [Dawn.jsx](src/components/layout/Dawn.jsx) | 지면이 가장자리부터 녹고, 등불 자리에서 빛의 원이 자라 화면을 덮으며 불씨가 떠오른다 |
+| 4막 | [TableLight.jsx](src/components/layout/TableLight.jsx) | 식탁 조명 속에서 빛 알갱이가 천천히 떠오른다 |
+
+모션 축소 설정에서는 등불·먼지·불씨·빛 알갱이를 그리지 않고, 글은 처음부터
+다 밝으며, 새벽은 번지지 않고 한 번에 바뀐다.
 
 ### 조절할 수 있는 값
 
@@ -164,9 +187,9 @@ VITE_SUPABASE_KEY=…
 | --- | --- | --- | --- |
 | Page.jsx | `ENTER_WINDOW` / `EXIT_WINDOW` | 0.35 | 넘김 램프 구간(뷰포트 높이 대비) |
 | Page.jsx | `ENTER_X` / `EXIT_X` | 6% / -8% | 넘김 이동량 |
-| Page.jsx | `stage(d, ...)` | 0/0.4/0.75/1 | 소멸 3단계 경계 |
-| motion.js | `MAX_BLUR_PX` | 6 | 2단계 블러 상한 |
-| motion.js | `detectBlur()` | — | 블러를 켤지 판단(모바일·저사양은 끔) |
+| Page.jsx | `stage(d, ...)` | 스밈 0~0.45 / 용해 0.22~0.8 / 번짐 0.06~0.9 | 소멸 단계 경계 |
+| ScrubText.jsx | `from` / `to` | 0.92 / 0.62 | 단어가 밝아지기 시작하는 자리와 다 밝아지는 자리(화면 높이 대비) |
+| ShelfLantern.jsx | `FOLLOW` | 0.075 | 등불이 포인터를 따라오는 빠르기 |
 | BackgroundStage.jsx | `FG_STEPS` | 12 | 글자 색 보간을 끊는 단계 수 |
 
 ### 설계 판단 두 가지
@@ -181,16 +204,17 @@ VITE_SUPABASE_KEY=…
 
 ### 배경 전환이 소멸 구간과 맞물리는 방법
 
-`BackgroundStage` 는 막마다 색 stop 을 둘 잡는다 — 도착 지점과 출발 지점.
-그 사이에는 색을 붙잡고 있다가, 한 막의 출발 지점에서 다음 막의 도착
-지점까지 정확히 뷰포트 한 화면에 걸쳐 넘어간다. 3막의 출발 지점이 곧
-소멸의 시작(`d=0`)이라, 소멸이 끝나는 순간 `#F6F3EE` 전환도 끝난다.
-
-램프에는 `easeTrailing`(뒤로 실은 곡선)을 쓴다. 대칭 곡선이면 종이가 아직
-불투명한 시점에 배경이 이미 절반 넘게 밝아져서, 어두운 페이지가 가장자리부터
-빛나야 할 자리에 회색 종이가 놓인다.
+바닥색(`--bg`)은 끝까지 어둠에 머문다(`palette.js` 의 `ground`). 4막의 밝음은
+바닥색을 섞어서 내지 않고, 새벽(`Dawn`)의 빛의 원이 화면을 덮어서 낸다.
+예전에는 바닥색을 어둠 → `#F6F3EE` 로 섞었는데, 섞는 도중이 중간 회색이라
+그 위에 얹은 빛 레이어·배경 블러와 함께 전환 내내 화면이 회색 안개처럼
+탁했다. 지금은 어둠과 새벽이 한 화면에 또렷하게 갈린다.
 
 ### 측정치 (Whale / CDP / 144Hz)
+
+> 아래 표는 새벽(Dawn)으로 바꾸기 전, 배경색 보간과 블러가 있던 때의 값이다.
+> 바꾼 뒤 헤드리스 Chromium(60Hz, GPU 없음)에서 같은 구간을 2초에 걸쳐 스크롤하면
+> p50 이 49.9ms → 16.7ms 로 내려왔다.
 
 `d = 0 → 1` 구간을 실제로 스크롤시키며 rAF 간격을 측정한 값. ms.
 

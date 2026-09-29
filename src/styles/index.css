@@ -273,8 +273,9 @@ body {
   --turn: 0;
   --turn-on: 0;
   --turn-veil: 0;
-  /* 3막이 흩어지면 책도 함께 사라진다. --act4-in 은 Page(dissolve)가 써 준다. */
-  --book-gone: var(--act4-in, 0);
+  /* 3막이 흩어지면 책도 함께 빛에 녹는다. Page(dissolve)가 새벽이 번지는
+     정도에 맞춰 직접 써 준다(Dawn). */
+  --book-gone: 0;
 }
 
 .book-runway {
@@ -479,6 +480,17 @@ body {
      왼쪽이므로 왼쪽을 기준으로 세워야 한다. */
   left: calc(50% + var(--book-w) / 2 + 0.75rem);
   right: auto;
+}
+
+/* 밝은 4막 위에서는 레일도 4막의 글자색을 쓴다. 점(bg-current)과 이름(text-soft
+   등)이 모두 --fg 에서 나오므로 이 한 줄로 따라온다. */
+.act-rail {
+  transition: color 500ms ease;
+}
+
+.act-rail[data-light='true'] {
+  --fg: #16171a;
+  color: #16171a;
 }
 
 /* 책이 화면을 다 채우면 옆에 설 자리가 없다 — 화면 안쪽으로 물린다. */
@@ -900,7 +912,15 @@ body {
   transform-origin: left center;
   transform-style: preserve-3d;
   transform: rotateY(calc(var(--book-open) * -172deg));
-  /* 다 젖혀지면 클릭도 그림도 남지 않게 한다 */
+  /* 다 젖혀지면 그림이 남지 않게 옅어지는데, 그 투명도는 여기가 아니라
+     앞뒤 두 면에 따로 건다. 3D 로 묶인(preserve-3d) 상자에 opacity 를 걸면
+     브라우저가 상자를 평면 한 장으로 눌러 그려서, 면마다 걸어 둔
+     backface-visibility 가 먹지 않는다 — 표지가 90도를 넘어가도 앞면이 숨지
+     않고, 뒤표지 안쪽에 제목이 거울처럼 뒤집혀 비쳤다. */
+}
+
+.book-cover-front,
+.book-cover-back {
   opacity: calc(1 - var(--book-open) * var(--book-open));
 }
 
@@ -928,6 +948,50 @@ body {
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent),
     0 30px 70px rgb(0 0 0 / 0.55);
+}
+
+/* 책을 꺼내 이쪽으로 돌리는 동안 표지 위를 빛이 한 번 스친다.
+   각도가 바뀌며 등불빛이 표면을 쓸고 지나가는 모양새다. 띠 하나를
+   transform 으로 옮긴다 — 배경 위치를 바꾸면 표지 전체를 매 프레임 다시 칠한다.
+   표지 앞면은 이미 absolute 라 띠의 기준 상자가 된다. 넘치는 띠만 잘라 낸다. */
+.book-cover-front {
+  overflow: hidden;
+}
+
+.book-cover-front::after {
+  content: '';
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 55%;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    rgb(255 236 200 / 0) 0%,
+    rgb(255 236 200 / 0.05) 35%,
+    rgb(255 240 214 / 0.2) 50%,
+    rgb(255 236 200 / 0.05) 65%,
+    rgb(255 236 200 / 0) 100%
+  );
+  transform: translate3d(calc(-110% + var(--book-out, 0) * 300%), 0, 0);
+  opacity: calc(var(--book-out, 0) * (1 - var(--book-out, 0)) * 4);
+}
+
+/* 표지가 열릴 때 책 안에서 새어 나오는 빛 (BookStage .book-spill).
+   반쯤 열렸을 때 가장 밝다: open × (1 − open) × 4 는 0.5 에서 1 이 된다. */
+.book-spill {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 95% at 0% 50%,
+    rgb(255 226 176 / 0.34) 0%,
+    rgb(250 208 150 / 0.16) 32%,
+    rgb(240 190 120 / 0.05) 58%,
+    rgb(240 190 120 / 0) 78%
+  );
+  opacity: calc(var(--book-open, 0) * (1 - var(--book-open, 0)) * 4);
 }
 
 .book-cover-rule {
@@ -1049,45 +1113,23 @@ body {
 
 
 
-/* 소멸 1~2단계의 빛.
-   top/height 는 Page 가 매 프레임 "화면에 남아 있는 페이지 영역"으로 맞춰 준다.
-
-   아래쪽은 반드시 흐려서 끝내야 한다. 레이어 높이를 페이지 끝에 딱 맞추면
-   좌우와 위는 방사형 그라데이션이라 부드러운데 아래만 직선으로 잘려서,
-   밝은 띠와 어두운 바탕이 칼로 자른 듯 맞붙는다. */
-.page-light {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 0;
-  pointer-events: none;
-  opacity: 0;
-  /* --light-top 이 0% 이면 위쪽 페이드가 없는 것과 같다 (두 정지점이 겹친다) */
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    rgb(0 0 0 / 0) 0%,
-    #000 var(--light-top, 0%),
-    #000 var(--light-solid, 42%),
-    rgb(0 0 0 / 0.4) calc((var(--light-solid, 42%) + var(--light-end, 100%)) / 2),
-    rgb(0 0 0 / 0) var(--light-end, 100%)
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    rgb(0 0 0 / 0) 0%,
-    #000 var(--light-top, 0%),
-    #000 var(--light-solid, 42%),
-    rgb(0 0 0 / 0.4) calc((var(--light-solid, 42%) + var(--light-end, 100%)) / 2),
-    rgb(0 0 0 / 0) var(--light-end, 100%)
-  );
-}
-
 /* 4막은 책으로 감싸지 않지만 글 폭은 같아야 한다.
    묶지 않았더니 책보다 넓어져(책 600 / 본문 672) 마지막 막에서 글줄이
    갑자기 벌어졌다. 책이 사라져도 읽던 폭은 이어져야 한다. */
 #act4 > div {
   max-width: min(var(--book-w), 100vw);
   margin-inline: auto;
+}
+
+/* 1~3막의 글은 책 폭 안에서 섹션 여백(sm:px-10)만큼 한 번 더 들어가 있다.
+   4막은 섹션 여백이 화면 가장자리에 붙으므로, 책 폭을 그대로 쓰면 글 칸이
+   80px 넓어지고 왼쪽으로 치우쳤다(실측: 1440 화면에서 본문 왼쪽 끝이 423 → 383).
+   같은 여백을 빼서 읽던 칸 그대로 이어지게 한다. 모바일은 책이 곧 화면이라
+   섹션 여백만으로 이미 같다. */
+@media (min-width: 640px) {
+  #act4 > div {
+    max-width: calc(min(var(--book-w), 100vw) - 5rem);
+  }
 }
 
 /* 4막은 자기 글자색을 쓴다.
@@ -1182,9 +1224,6 @@ body {
 
   /* 종이 면과 가장자리는 움직임이 아니라 정적인 표현이므로 남겨 둔다.
      소멸용 빛 레이어만 걷는다. */
-  .page-light {
-    display: none;
-  }
 
   .table-light {
     transform: translate3d(0, 38vh, 0) !important;
@@ -1308,6 +1347,125 @@ body {
   }
 }
 
+/* 새벽 (Dawn). 3막 끝의 등불 자리에서 빛의 원이 자라 화면을 덮고,
+   다 자란 원이 곧 4막의 바탕이 된다. 값은 Page(3막)가 루트에 쓴다. */
+.dawn {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: var(--dawn, 0);
+}
+
+/* 빛의 원. 화면보다 훨씬 큰 판 하나를 키운다(scale).
+   안쪽 88% 까지는 4막 바탕색으로 꽉 차 있고, 바깥 12% 가 번짐이다.
+   중심에서 가장 먼 화면 모서리까지가 77vmax 라, 반지름 100vmax 의 88% 면
+   scale 0.9 에서 이미 모서리까지 덮는다. */
+.dawn-disc,
+.dawn-rim {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: 200vmax;
+  height: 200vmax;
+  margin: -100vmax 0 0 -100vmax;
+  border-radius: 50%;
+  transform: scale(var(--dawn-s, 0));
+  will-change: transform;
+}
+
+.dawn-disc {
+  background: radial-gradient(
+    closest-side,
+    #fdfaf4 0%,
+    #f9f5ee 30%,
+    #f6f3ee 70%,
+    #f6f3ee 88%,
+    rgb(246 243 238 / 0.5) 94%,
+    rgb(246 243 238 / 0) 100%
+  );
+}
+
+/* 원을 둘러싼 후광. 원보다 크게(1.7배) 퍼져 가장자리를 녹인다 — 원판 하나만
+   두었더니 작을 때 가장자리가 딱딱해 등불이 아니라 달처럼 보였다.
+   원이 작을 때는 앰버로 타오르다가 화면을 덮어 갈수록 옅어진다 —
+   새벽빛은 불빛보다 희다. */
+.dawn-rim {
+  transform: scale(calc(var(--dawn-s, 0) * 1.7));
+  background: radial-gradient(
+    closest-side,
+    rgb(255 226 178 / 0.5) 0%,
+    rgb(245 200 135 / 0.32) 38%,
+    rgb(232 176 104 / 0.14) 62%,
+    rgb(224 167 92 / 0.05) 80%,
+    rgb(224 167 92 / 0) 100%
+  );
+  opacity: calc(1 - var(--dawn-s, 0));
+}
+
+/* 빛에서 떨어져 나와 떠오르는 불씨. 소멸 진행도(--dissolve)에 물려 있어
+   되감으면 도로 내려온다. 제 차례(--start)가 오면 켜지고, 원이 화면을
+   다 덮을 무렵 꺼진다. */
+.dawn-ember {
+  position: absolute;
+  left: calc(50% + var(--ex));
+  top: calc(62% + var(--ey));
+  border-radius: 9999px;
+  background: #ffd9a0;
+  box-shadow: 0 0 8px 1px rgb(240 180 100 / 0.85);
+  transform: translate3d(
+    calc(var(--sway) * var(--dissolve, 0) * 3),
+    calc(var(--rise) * var(--dissolve, 0) * -1),
+    0
+  );
+  opacity: calc(
+    clamp(0, (var(--dissolve, 0) - var(--start)) * 6, 1) *
+      clamp(0, (0.9 - var(--dissolve, 0)) * 5, 1)
+  );
+}
+
+/* 식탁 조명 속의 빛 알갱이 (TableLight). 조명이 내려앉는 만큼(--flow-o, 최대 0.34)
+   따라 켜진다. 화면 아래쪽에서 태어나 천천히 떠오르며 사라진다. */
+.table-motes {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 70vh;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: calc(var(--flow-o, 0) / 0.34);
+}
+
+.table-mote {
+  position: absolute;
+  bottom: -8px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-accent) 80%, #fff);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 60%, transparent);
+  opacity: 0;
+  animation-name: table-mote-rise;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes table-mote-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  20% {
+    opacity: 0.55;
+  }
+  75% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift), -62vh, 0);
+  }
+}
+
 /* 목차 점 둘레의 읽기 링. --act-p 는 ActNav 가 스크롤마다 쓴다.
    둘레(2πr = 62.83)만큼 선을 그어 두고 아직 안 읽은 만큼 밀어 둔다. */
 .act-ring {
@@ -1379,7 +1537,11 @@ body {
 @media (prefers-reduced-motion: reduce) {
   /* 모션 축소에서는 책장을 건너뛰고 펼친 책에서 시작한다(위 .shelf 참고).
      등불이 남아 있으면 비춰 줄 책장 없이 1막 첫머리를 어둡게 덮는다. */
-  .shelf-lantern {
+  .shelf-lantern,
+  .dawn-embers,
+  .table-motes,
+  .book-spill,
+  .book-cover-front::after {
     display: none;
   }
 

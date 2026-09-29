@@ -77,7 +77,8 @@ export function BackgroundStage({ onActChange }) {
       const depart = Math.max(arrive, top + h - vh / 2 - departPull);
 
       positions.push(arrive, depart);
-      bg.push(act.bg, act.bg);
+      // 바닥색. 4막의 밝음은 Dawn 이 덮어서 낸다(palette.js ground 참고).
+      bg.push(act.ground ?? act.bg, act.ground ?? act.bg);
     }
 
     stopsRef.current = { positions, bg };

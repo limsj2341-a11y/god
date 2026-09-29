@@ -33,26 +33,44 @@ async function ensureFonts() {
   }
 }
 
-/** 주어진 폭에 맞춰 줄바꿈 (한글은 글자 단위로 끊어도 자연스럽다) */
+/**
+ * 주어진 폭에 맞춰 줄바꿈.
+ *
+ * 띄어쓰기 단위로 끊는다. 전에는 글자 단위로 끊어서 "적기만 한 / 다." 처럼
+ * 마지막 글자 하나가 다음 줄로 떨어졌다. 화면은 keep-all 이라 단어째 넘어가는데
+ * 카드만 달랐다. 한 단어가 한 줄보다 길 때만 글자 단위로 쪼갠다.
+ */
 function wrap(ctx, text, maxWidth) {
-  const words = String(text).split(/(\s+)/);
+  const words = String(text).split(/\s+/).filter(Boolean);
   const lines = [];
   let line = '';
 
-  const pushChunk = (chunk) => {
-    for (const ch of chunk) {
-      const next = line + ch;
-      if (ctx.measureText(next).width > maxWidth && line) {
-        lines.push(line.trimEnd());
-        line = ch === ' ' ? '' : ch;
+  const fits = (s) => ctx.measureText(s).width <= maxWidth;
+
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (fits(next)) {
+      line = next;
+      continue;
+    }
+    if (line) lines.push(line);
+    if (fits(word)) {
+      line = word;
+      continue;
+    }
+    // 한 줄에 다 안 들어가는 긴 단어 — 글자 단위로 쪼갠다
+    line = '';
+    for (const ch of word) {
+      if (line && !fits(line + ch)) {
+        lines.push(line);
+        line = ch;
       } else {
-        line = next;
+        line += ch;
       }
     }
-  };
+  }
 
-  for (const w of words) pushChunk(w);
-  if (line.trim()) lines.push(line.trimEnd());
+  if (line) lines.push(line);
   return lines;
 }
 
@@ -119,7 +137,9 @@ export async function renderPracticeCard({ days, checked }) {
     return { ...d, lines, contentBottom, height: contentBottom + RULE_GAP + ROW_GAP };
   });
 
-  const headerH = 250;
+  // 제목 밑줄(228) 아래로 첫 항목이 숨 쉴 자리를 둔다. 250 이면 밑줄과
+  // 첫 체크 상자가 거의 맞닿았다.
+  const headerH = 286;
   const footerH = 150;
   const bodyH = rows.reduce((s, r) => s + r.height, 0);
   const H = headerH + bodyH + footerH;

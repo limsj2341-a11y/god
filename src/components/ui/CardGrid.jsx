@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } from 'motion/react';
-import { hasFinePointer, softSpring } from '../../lib/anim';
+import { VIEWPORT, hasFinePointer, softSpring } from '../../lib/anim';
 
 /**
  * 나란히 놓고 비교하는 카드 묶음.
@@ -37,7 +37,23 @@ const MAX_TILT = 2.5; // 도(°)
  * 글줄이 사다리꼴로 눕고, 읽는 중에 카드가 살아 움직여 시선을 뺏는다.
  * 여기서 원하는 건 "손이 닿았다"는 정도의 기별이다.
  */
-function TiltCard({ children, className = '' }) {
+/** 카드가 들어오는 곡선 — 빠르게 다가와 천천히 멈춘다 */
+const ENTER_EASE = [0.16, 1, 0.3, 1];
+
+/**
+ * 들어오는 방향.
+ *
+ * 두 장을 나란히 놓은 비교(2열)는 양쪽에서 마주 들어온다 — "두 갈래 길"이
+ * 한가운데서 만나 나란히 서는 모양이다. 그 밖에는 차례로 떠오른다.
+ * 한 줄로 쌓이는 좁은 화면에서도 같은 방향을 쓴다. 옆으로 들어오는 거리가
+ * 짧아(28px) 화면 밖으로 나가지 않는다.
+ */
+function enterFrom(i, columns) {
+  if (columns === 2) return { x: i % 2 === 0 ? -28 : 28, y: 10 };
+  return { x: 0, y: 26 };
+}
+
+function TiltCard({ children, className = '', index = 0, columns = 2 }) {
   const reduced = useReducedMotion();
   // 포인터 판정은 마운트 이후에 한다. 렌더 중에 matchMedia 를 부르면
   // 서버·클라이언트가 서로 다른 결과를 낼 수 있다.
@@ -64,8 +80,27 @@ function TiltCard({ children, className = '' }) {
     py.set(0.5);
   };
 
+  // 등장은 한 번만, 화면에 들어올 때. 모션 축소에서는 제자리에 그냥 있다.
+  const from = enterFrom(index, columns);
+  const enter = reduced
+    ? { initial: false }
+    : {
+        initial: { opacity: 0, ...from },
+        whileInView: {
+          opacity: 1,
+          x: 0,
+          y: 0,
+          transition: { duration: 0.9, delay: 0.12 + index * 0.12, ease: ENTER_EASE },
+        },
+        viewport: VIEWPORT,
+      };
+
   if (!active) {
-    return <li className={className}>{children}</li>;
+    return (
+      <motion.li className={className} {...enter}>
+        {children}
+      </motion.li>
+    );
   }
 
   return (
@@ -76,6 +111,7 @@ function TiltCard({ children, className = '' }) {
       whileHover={{ y: -3 }}
       transition={softSpring}
       style={{ rotateX, rotateY, transformPerspective: 900 }}
+      {...enter}
     >
       {children}
     </motion.li>
@@ -90,7 +126,12 @@ export function CardGrid({ items = [], columns = 2, numbered = false, className 
     <div className={`@container ${className}`}>
       <ul className={`grid grid-cols-1 gap-3 ${COLS[columns] ?? COLS[2]}`}>
       {items.map((item, i) => (
-        <TiltCard key={item.title ?? i} className="surface rounded-xl p-5 sm:p-6">
+        <TiltCard
+          key={item.title ?? i}
+          index={i}
+          columns={columns}
+          className="surface rounded-xl p-5 sm:p-6"
+        >
           {numbered ? (
             <span className="text-accent mb-3 block text-xs tabular-nums tracking-[0.2em]">
               {String(i + 1).padStart(2, '0')}

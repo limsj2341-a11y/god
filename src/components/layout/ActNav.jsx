@@ -134,6 +134,9 @@ export function ActNav({ active }) {
   return (
     <nav
       ref={navRef}
+      // 4막은 밝은 바탕이다. 레일은 4막 밖(루트)에 있어 밝은 글자색을 그대로
+      // 물려받는데, 그러면 밝은 바탕에 밝은 점과 이름이 얹혀 거의 안 보였다.
+      data-light={!atCover && active === 3 ? 'true' : undefined}
       aria-label={nav.label}
       className="act-rail fixed top-1/2 z-40 hidden -translate-y-1/2 sm:block"
     >

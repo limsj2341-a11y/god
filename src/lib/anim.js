@@ -54,8 +54,7 @@ export const VIEWPORT = { once: true, amount: 'some', margin: '0px 0px -15% 0px'
  *
  * 기울기·호버처럼 마우스가 있어야 뜻이 통하는 연출을 켤지 정할 때 쓴다.
  * 터치에서는 hover 가 "탭하고 나면 눌린 채로 남는" 상태가 되어 오히려 방해가 된다.
- * lib/motion.js 의 detectBlur 가 같은 판단을 하는데, 거기는 성능 이야기라
- * 목적이 달라 합치지 않았다.
+ * 첫 화면의 등불(ShelfLantern)도 이 값으로 포인터를 따를지 제자리에서 흔들릴지 정한다.
  */
 export function hasFinePointer() {
   if (typeof window === 'undefined' || !window.matchMedia) return false;

@@ -389,6 +389,10 @@ export function BookStage() {
           {/* 뒤표지 — 두께만큼 뒤에 선다 */}
           <div className="book-back" />
 
+          {/* 표지가 열리는 동안 책 안에서 새어 나오는 빛. 책등 쪽에서 부채꼴로
+              퍼지고, 반쯤 열렸을 때 가장 밝다가 다 열리면 잦아든다. */}
+          <div className="book-spill" />
+
           {/* 덮개. 왼쪽 모서리를 축으로 젖혀진다. */}
           <div className="book-cover">
             <div className="book-cover-front">
