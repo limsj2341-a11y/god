@@ -1662,6 +1662,14 @@ body {
   backface-visibility: hidden;
 }
 
+/* 막 번호의 자리표. 제목 머리 전체를 덮고 움직이지 않는다 — 관찰은 이것이 받는다. */
+.act-numeral-anchor {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
 /* 제목 뒤에 크게 깔리는 막 번호 — 속이 빈 윤곽선 숫자.
    글을 가리지 않도록 아주 옅게, 글보다 느리게 흐른다(ActNumeral). */
 .act-numeral {

@@ -24,29 +24,36 @@ export function Section({ id, index, children, className = '', innerClassName = 
 /** 큰 막 번호가 글보다 느리게 흐르는 정도. 1 이면 글과 같이 움직인다. */
 const NUMERAL_DRIFT = 0.28;
 
+/** 번호가 제자리에서 벗어날 수 있는 최대 거리(px). 제목 곁을 떠나지 않게 묶는다. */
+const NUMERAL_MAX_OFF = 140;
+
 /**
  * 제목 뒤에 크게 깔리는 막 번호.
  *
  * 속이 빈 윤곽선 숫자라 글을 가리지 않는다. 글보다 느리게 흘러서(패럴랙스)
  * 지면에 깊이가 생긴다 — 번호는 종이 안쪽 깊은 곳에, 글은 종이 위에 있는 것처럼.
+ *
+ * 움직이지 않는 자리표(anchor)를 따로 두고 그것을 관찰한다. 전에는 번호 자신을
+ * 관찰했는데, 막이 멀리 있을 때 크게 밀려난 번호가 막의 틀(.page-content,
+ * overflow: hidden) 밖으로 나가면 IntersectionObserver 가 "안 보임"으로 판정해
+ * 루프가 꺼졌다. 한번 꺼지면 번호를 되돌릴 계산이 다시 돌지 않아, 스크롤로 2막·3막에
+ * 도착해도 번호가 900~2,000px 위 화면 밖에 멈춰 있었다(목차로 순간 이동할 때만
+ * 제자리를 찾았다). 자리표는 옮기지 않으므로 이런 되먹임이 없다.
  */
 export function ActNumeral({ n }) {
-  const ref = useRef(null);
+  const anchorRef = useRef(null);
+  const numRef = useRef(null);
   const cache = useRef('');
   const reduced = useReducedMotion();
 
   const onFrame = useCallback(
-    (_rect, vh) => {
-      const el = ref.current;
+    (rect, vh) => {
+      const el = numRef.current;
       if (!el || reduced) return;
-      // 자기 자신이 아니라 부모(제목 머리)의 자리를 잰다. 자기 rect 에는 지난
-      // 프레임에 준 transform 이 이미 들어 있어서, 그걸 다시 입력으로 쓰면
-      // 스크롤 방식에 따라 번호가 다른 자리에 멈춘다(실측: 같은 위치에서 -9px / +73px).
-      const host = el.parentElement ?? el;
-      const rect = host.getBoundingClientRect();
-      // 화면 한가운데에 왔을 때 제자리. 그보다 아래면 아래로, 위면 위로 밀린다.
-      // 글과 반대로 밀어야 느리게 따라오는 것처럼 보인다.
-      const off = (rect.top + rect.height / 2 - vh / 2) * -NUMERAL_DRIFT;
+      // 제목 머리가 화면 한가운데에 왔을 때 제자리. 그보다 아래면 아래로, 위면
+      // 위로 밀린다 — 글과 반대로 밀어야 느리게 따라오는 것처럼 보인다.
+      const raw = (rect.top + rect.height / 2 - vh / 2) * -NUMERAL_DRIFT;
+      const off = Math.max(-NUMERAL_MAX_OFF, Math.min(NUMERAL_MAX_OFF, raw));
       const v = `translate3d(0,${off.toFixed(1)}px,0)`;
       if (cache.current === v) return;
       cache.current = v;
@@ -55,11 +62,13 @@ export function ActNumeral({ n }) {
     [reduced],
   );
 
-  useViewportFrame(ref, onFrame);
+  useViewportFrame(anchorRef, onFrame);
 
   return (
-    <span ref={ref} aria-hidden="true" className="act-numeral serif">
-      {String(n).padStart(2, '0')}
+    <span ref={anchorRef} aria-hidden="true" className="act-numeral-anchor">
+      <span ref={numRef} className="act-numeral serif">
+        {String(n).padStart(2, '0')}
+      </span>
     </span>
   );
 }
