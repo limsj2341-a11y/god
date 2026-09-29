@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { nav } from '../../data/content';
 import { JUMP_EVENT } from '../../hooks/useViewportFrame';
 import { useScrollProgress } from '../../hooks/useScrollProgress';
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { documentTop } from '../../lib/dom';
 import { COVER_SPAN } from './BookStage';
 import { TURN_READ_START, TURN_RUNWAY, softSpring } from '../../lib/anim';
@@ -26,7 +27,8 @@ export function ActNav({ active }) {
    *
    * 값이 바뀔 때만 state 를 건드리므로 스크롤마다 리렌더되지 않는다.
    */
-  const [atCover, setAtCover] = useState(true);
+  const reduced = usePrefersReducedMotion();
+  const [atCover, setAtCover] = useState(!reduced);
 
   const navRef = useRef(null);
   // 막마다 [시작, 끝] 스크롤 위치. 문서 높이가 바뀔 때만 다시 잰다.
@@ -34,7 +36,8 @@ export function ActNav({ active }) {
   const progressRef = useRef('');
 
   const onScroll = useCallback(({ scrollY, viewportH, docH }) => {
-    setAtCover(scrollY < viewportH * COVER_SPAN);
+    // 모션 축소에서는 표지 구간이 없다 — 펼친 책(1막)에서 시작한다
+    setAtCover(!reduced && scrollY < viewportH * COVER_SPAN);
 
     /*
      * 지금 막을 얼마나 읽었는지(0~1) — 점 둘레의 링이 이만큼 차오른다.
@@ -73,7 +76,7 @@ export function ActNav({ active }) {
       progressRef.current = v;
       navRef.current.style.setProperty('--act-p', v);
     }
-  }, []);
+  }, [reduced]);
 
   useScrollProgress(onScroll);
 

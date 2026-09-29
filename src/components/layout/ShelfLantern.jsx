@@ -27,6 +27,7 @@ const FOLLOW = 0.075;
  * 합성만 다시 한다.
  */
 export function ShelfLantern() {
+  const rootRef = useRef(null);
   const lightRef = useRef(null);
   const reduced = usePrefersReducedMotion();
 
@@ -77,8 +78,16 @@ export function ShelfLantern() {
     // 책을 꺼내고 나면 등불이 할 일이 없다. 루프를 세운다.
     const onCover = () => window.scrollY < window.innerHeight * PULL_SPAN;
 
+    // 책장을 떠나면 등불 판(화면보다 훨씬 크다)과 먼지를 아예 그리지 않는다.
+    // 투명도 0 으로 남겨 두면 합성 메모리를 쥐고 먼지 애니메이션도 계속 돈다.
+    const root = rootRef.current;
+    const show = (on) => {
+      if (root && root.hidden === on) root.hidden = !on;
+    };
+
     const frame = (now) => {
       raf = 0;
+      show(onCover());
       if (!onCover() || document.hidden) return;
 
       if (!fine) {
@@ -109,6 +118,7 @@ export function ShelfLantern() {
     }
 
     const onScroll = () => {
+      show(onCover());
       if (onCover()) wake();
     };
 
@@ -126,7 +136,7 @@ export function ShelfLantern() {
   }, [reduced]);
 
   return (
-    <div className="shelf-lantern" aria-hidden="true">
+    <div ref={rootRef} className="shelf-lantern" aria-hidden="true">
       <div ref={lightRef} className="shelf-lantern-light">
         {!reduced
           ? motes.map((m) => (

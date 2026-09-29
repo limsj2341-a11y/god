@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useScrollProgress } from '../../hooks/useScrollProgress';
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { clamp01, easeSoft, easeTurn, stage } from '../../lib/motion';
 import { TURN_PHASE, TURN_RUNWAY } from '../../lib/anim';
 import { site } from '../../data/content';
@@ -163,6 +164,8 @@ function ShelfItem({ it }) {
 }
 
 export function BookStage() {
+  // 모션 축소에서는 책장도 꺼내기도 펼치기도 없다 — 펼친 책에서 시작한다.
+  const reduced = usePrefersReducedMotion();
   // 막과 막이 맞닿는 자리(문서 좌표). 여기서 낱장이 넘어간다.
   const seamsRef = useRef([]);
 
@@ -230,6 +233,20 @@ export function BookStage() {
   const onScroll = useCallback(({ scrollY, viewportH }) => {
     const root = document.documentElement;
 
+    if (reduced) {
+      // 펼친 책에서 시작한다(index.css 의 모션 축소 규칙이 책장·표지·막을 숨긴다).
+      // 전에는 이 값들을 스크롤로 계속 계산해서, 활주로가 없는데도 책이 책장에
+      // 꽂힌 크기로 남아 있다가 1막을 읽는 동안 커졌다.
+      root.style.setProperty('--book-out', '1');
+      root.style.setProperty('--book-open', '1');
+      root.style.setProperty('--shelf-out', '0');
+      root.style.setProperty('--book-veil', '0');
+      root.style.setProperty('--turn', '0');
+      root.style.setProperty('--turn-veil', '0');
+      root.style.setProperty('--turn-on', '0');
+      return;
+    }
+
     /* ── 책장에서 꺼내기 → 표지 펼치기 ──
      *
      * 두 동작을 한 구간에 겹쳐 넣으면 책이 아직 돌아서는 중에 표지가 열려
@@ -294,7 +311,7 @@ export function BookStage() {
     root.style.setProperty('--turn-veil', veil.toFixed(4));
 
     root.style.setProperty('--turn-on', turn > 0 && turn < 1 ? '1' : '0');
-  }, []);
+  }, [reduced]);
 
   useScrollProgress(onScroll);
 
@@ -419,7 +436,17 @@ export function BookStage() {
  */
 export function BookRunway() {
   // 꺼내기 + 펼치기에 드는 거리를 그대로 비워 둔다.
-  return <div className="book-runway" aria-hidden="true" style={{ height: `${COVER_SPAN * 100}dvh` }} />;
+  // 모션 축소에서는 비우지 않는다. 높이를 인라인으로 주므로 index.css 의
+  // 모션 축소 규칙(height: 0)으로는 덮이지 않았다 — 첫 화면이 1.7 화면 동안
+  // 텅 비어 있었다. 여기서 직접 0 으로 둔다.
+  const reduced = usePrefersReducedMotion();
+  return (
+    <div
+      className="book-runway"
+      aria-hidden="true"
+      style={{ height: reduced ? 0 : `${COVER_SPAN * 100}dvh` }}
+    />
+  );
 }
 
 export default BookStage;

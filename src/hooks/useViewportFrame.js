@@ -7,6 +7,40 @@ import { useEffect } from 'react';
 export const JUMP_EVENT = 'tangbu:jump';
 
 /**
+ * 목차 말고도 순간 이동은 일어난다 — 스크롤바를 끌어 한 번에 끝으로 가거나,
+ * 트랙을 눌러 한 쪽씩 건너뛸 때. 그때 연출 루프를 켜고 끄는 IntersectionObserver
+ * 는 아무 소식도 주지 않는다. 관찰 대상이 "화면 밖(위)"에서 "화면 밖(아래)"로
+ * 한 번에 건너가면 교차 상태가 바뀌지 않기 때문이다. 그러면 3막을 건너뛴 채
+ * 4막에 도착해 소멸 진행도가 0 에 머물고, 4막 글(--act4-in)과 새벽이 뜨지 않는다.
+ *
+ * 한 프레임에 한 화면 가까이 건너뛴 스크롤을 순간 이동으로 보고 같은 신호를
+ * 쏜다. 보통 스크롤(휠·손가락·키보드)은 한 프레임에 그만큼 움직이지 않는다.
+ * 리스너는 모듈에 하나만 둔다 — 훅을 쓰는 곳마다 붙이면 스크롤마다 수십 번 돈다.
+ */
+let jumpWatchers = 0;
+let lastJumpY = 0;
+
+function onMaybeJump() {
+  const y = window.scrollY;
+  if (Math.abs(y - lastJumpY) > window.innerHeight * 0.9) {
+    window.dispatchEvent(new Event(JUMP_EVENT));
+  }
+  lastJumpY = y;
+}
+
+function watchJumps() {
+  if (jumpWatchers === 0) {
+    lastJumpY = window.scrollY;
+    window.addEventListener('scroll', onMaybeJump, { passive: true });
+  }
+  jumpWatchers += 1;
+  return () => {
+    jumpWatchers -= 1;
+    if (jumpWatchers === 0) window.removeEventListener('scroll', onMaybeJump);
+  };
+}
+
+/**
  * 요소가 뷰포트 근처에 있는 동안에만 rAF 루프를 돌린다.
  *
  * scroll 이벤트에는 아무 연산도 붙이지 않는다. IntersectionObserver 는
@@ -67,11 +101,13 @@ export function useViewportFrame(ref, onFrame, { rootMargin = '30% 0px' } = {}) 
     // 순간 이동은 드문 사건이라 그때만 값을 치른다.
     const onJump = () => measure();
     window.addEventListener(JUMP_EVENT, onJump);
+    const unwatchJumps = watchJumps();
 
     if (typeof IntersectionObserver === 'undefined') {
       start();
       return () => {
         window.removeEventListener(JUMP_EVENT, onJump);
+        unwatchJumps();
         stop();
       };
     }
@@ -88,6 +124,7 @@ export function useViewportFrame(ref, onFrame, { rootMargin = '30% 0px' } = {}) 
 
     return () => {
       window.removeEventListener(JUMP_EVENT, onJump);
+      unwatchJumps();
       io.disconnect();
       if (raf) cancelAnimationFrame(raf);
       raf = 0;

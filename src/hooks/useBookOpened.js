@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useScrollProgress } from './useScrollProgress';
+import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { OPEN_SPAN, PULL_SPAN } from '../components/layout/BookStage';
 
 /**
@@ -13,6 +14,7 @@ import { OPEN_SPAN, PULL_SPAN } from '../components/layout/BookStage';
  * 다시 사라졌다 나타나면 등장이 아니라 깜빡임이다.
  */
 export function useBookOpened(fraction = 0.75) {
+  const reduced = usePrefersReducedMotion();
   const [opened, setOpened] = useState(false);
 
   const onScroll = useCallback(
@@ -23,7 +25,8 @@ export function useBookOpened(fraction = 0.75) {
   );
 
   useScrollProgress(onScroll);
-  return opened;
+  // 모션 축소에서는 표지가 없다 — 처음부터 펼쳐져 있다
+  return reduced || opened;
 }
 
 export default useBookOpened;

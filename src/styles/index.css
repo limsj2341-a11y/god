@@ -1349,6 +1349,12 @@ body {
 
 /* 새벽 (Dawn). 3막 끝의 등불 자리에서 빛의 원이 자라 화면을 덮고,
    다 자란 원이 곧 4막의 바탕이 된다. 값은 Page(3막)가 루트에 쓴다. */
+/* 소멸이 시작되기 전에는 그리지 않는다(Page 가 :root[data-dawn] 을 켠다) */
+:root:not([data-dawn]) .dawn,
+:root:not([data-dawn]) .table-motes {
+  display: none;
+}
+
 .dawn {
   position: fixed;
   inset: 0;
@@ -1431,7 +1437,10 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 70vh;
+  /* 화면 아래 3분의 1 에만 머문다. 처음에는 70vh 까지 올라가게 했는데,
+     그러면 4막 본문을 읽는 내내 알갱이가 글줄 위를 지나가 시선을 끌었다 —
+     이 사이트는 읽는 중에 움직이는 것을 가장 꺼린다(CardGrid 주석 참고). */
+  height: 34vh;
   pointer-events: none;
   overflow: hidden;
   opacity: calc(var(--flow-o, 0) / 0.34);
@@ -1454,15 +1463,15 @@ body {
     opacity: 0;
     transform: translate3d(0, 0, 0);
   }
-  20% {
-    opacity: 0.55;
+  25% {
+    opacity: 0.32;
   }
-  75% {
-    opacity: 0.3;
+  70% {
+    opacity: 0.16;
   }
   100% {
     opacity: 0;
-    transform: translate3d(var(--drift), -62vh, 0);
+    transform: translate3d(var(--drift), -30vh, 0);
   }
 }
 

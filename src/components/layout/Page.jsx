@@ -76,6 +76,21 @@ function writeVar(cache, name, value) {
   writeCustom(document.documentElement, cache, name, value);
 }
 
+/**
+ * 새벽(Dawn)과 식탁 조명을 그릴지.
+ *
+ * 둘 다 화면보다 훨씬 큰 판이라, 안 보이는 동안에도 그려 두면 그만큼 합성
+ * 메모리를 쥐고 있다(휴대폰에서 판 하나가 1,700px 사방). 소멸이 시작되기 전에는
+ * 아예 그리지 않는다 — index.css 가 이 표시가 없으면 display: none 으로 둔다.
+ */
+function markDawn(cache, on) {
+  const v = on ? '1' : '';
+  if (cache.dawnMark === v) return;
+  cache.dawnMark = v;
+  if (on) document.documentElement.dataset.dawn = '';
+  else delete document.documentElement.dataset.dawn;
+}
+
 export function Page({ index, dissolve = false, className = '', children }) {
   const pageRef = useRef(null);
   const contentRef = useRef(null);
@@ -229,6 +244,7 @@ export function Page({ index, dissolve = false, className = '', children }) {
           writeVar(rc, '--dawn', past ? '1' : '0');
           writeVar(rc, '--dissolve', '0');
           writeVar(rc, '--book-gone', past ? '1' : '0');
+          markDawn(rc, past);
           writeVar(rc, '--act4-in', '1'); // 모션 축소에서는 4막을 그냥 띄워 둔다
         }
         return;
@@ -369,6 +385,7 @@ export function Page({ index, dissolve = false, className = '', children }) {
        * 어둠과 새벽이 한 화면에 또렷하게 갈린다.
        */
       const d = clamp01((vh - rect.bottom) / (vh * DISSOLVE_SPAN));
+      markDawn(rc, d > 0);
 
       // 세 단계를 서로 겹쳐 둔다. 딱딱 끊으면 이음매마다 속도가 꺾이고
       // 3막이 뚝 하고 사라진다(실측: 담벼락 짙기가 1.00 에서 0.08 로 한 걸음에).
